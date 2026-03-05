@@ -1,0 +1,118 @@
+{
+  "projectType": "frontend",
+  "projectName": "Bun Hono Frontend",
+  "projectDescription": "A Next.js frontend application for scheduling messages with person management, built to connect with a Bun Hono backend.",
+  "theme": "palm",
+  "primaryColor": "#3b82f6",
+  "lightColor": "#60a5fa",
+  "darkColor": "#2563eb",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/server-actions",
+              "concepts/authentication"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/message-scheduling",
+              "features/person-management",
+              "features/reschedule"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "components/overview",
+              "components/ui-components",
+              "components/forms",
+              "components/layouts"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment",
+              "configuration/backend-connection",
+              "configuration/styling"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Server Actions",
+            "pages": [
+              "api/messages/create-message",
+              "api/messages/update-message",
+              "api/messages/delete-message",
+              "api/people/create-person",
+              "api/people/update-person",
+              "api/people/delete-person",
+              "api/reschedule"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "api/components/messages",
+              "api/components/people",
+              "api/components/rescheduler"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types/message",
+              "api/types/person",
+              "api/types/state"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Message scheduling with customizable send delays",
+    "Person management with phone number validation",
+    "Server-side rendering with Next.js App Router",
+    "Form validation using Zod schemas",
+    "Responsive UI with shadcn/ui components",
+    "Real-time updates with React Server Actions",
+    "One-click message rescheduling",
+    "Basic authentication with backend"
+  ],
+  "publicApiSurface": [
+    "createMessage(prevState, formData)",
+    "updateMessage(prevState, formData)",
+    "deleteMessage(prevState, formData)",
+    "createPerson(prevState, formData)",
+    "updatePerson(prevState, formData)",
+    "deletePerson(prevState, formData)",
+    "reschedule()",
+    "Messages component",
+    "People component",
+    "Rescheduler component",
+    "CreateMessageForm component",
+    "UpdateMessageForm component",
+    "CreatePersonForm component",
+    "UpdatePerson component"
+  ]
+}
