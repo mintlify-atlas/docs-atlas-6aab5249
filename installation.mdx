@@ -1,0 +1,93 @@
+---
+title: Installation
+description: Set up the Bun Hono Frontend Next.js application
+---
+
+## Prerequisites
+
+Before installing the frontend application, ensure you have the following:
+
+<Warning>
+  The backend server **must be running** before starting the frontend. This application connects to the [Bun Hono Backend](https://github.com/anupom69/bun-hono-backend-optimized) to fetch and manage data.
+</Warning>
+
+- **Node.js**: Version 20 or higher
+- **Package Manager**: pnpm, npm, or yarn
+- **Backend Server**: [Bun Hono Backend](https://github.com/anupom69/bun-hono-backend-optimized) running and accessible
+- **Backend Credentials**: Username and password matching your backend configuration
+
+## Install Dependencies
+
+<Steps>
+  <Step title="Clone the repository">
+    First, clone the repository to your local machine:
+    
+    ```bash
+    git clone https://github.com/your-repo/bun-hono-frontend-nextjs.git
+    cd bun-hono-frontend-nextjs
+    ```
+  </Step>
+
+  <Step title="Install packages">
+    Install the project dependencies using your preferred package manager:
+    
+    <CodeGroup>
+      ```bash pnpm
+      pnpm install
+      ```
+
+      ```bash npm
+      npm install
+      ```
+
+      ```bash yarn
+      yarn install
+      ```
+    </CodeGroup>
+
+    This will install all required dependencies including:
+    - **Next.js 15.2.4** with React 19
+    - **Radix UI** components for the interface
+    - **Tailwind CSS** for styling
+    - **Lucide React** for icons
+    - **Zod** for validation
+  </Step>
+</Steps>
+
+## Environment Configuration
+
+Create a `.env` file in the root directory of your project to configure the connection to your backend:
+
+```bash .env
+BACKEND_URL=http://localhost:3000
+USERNAME="your-backend-username"
+PASSWORD="your-backend-password"
+```
+
+<Note>
+  The `USERNAME` and `PASSWORD` must match the credentials configured in your backend server. These are used for Basic Authentication when making API requests.
+</Note>
+
+### Environment Variables Explained
+
+| Variable | Description | Example |
+|----------|-------------|--------|
+| `BACKEND_URL` | URL where your Bun Hono backend is running | `http://localhost:3000` |
+| `USERNAME` | Backend authentication username | Same as backend config |
+| `PASSWORD` | Backend authentication password | Same as backend config |
+
+<Warning>
+  If your backend is running on a different port, update the `BACKEND_URL` accordingly. The frontend will automatically run on port 3001 if the backend is on port 3000.
+</Warning>
+
+## Port Configuration
+
+By default:
+- **Backend**: Runs on port `3000`
+- **Frontend**: Runs on port `3001`
+
+If your backend runs on a different port, update the `BACKEND_URL` in your `.env` file to match.
+
+## Next Steps
+
+Once installation is complete, proceed to the [Quickstart](/quickstart) guide to run the application and start using it.

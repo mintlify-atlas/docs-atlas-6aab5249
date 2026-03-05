@@ -1,0 +1,192 @@
+---
+title: "reschedule"
+description: "Server action to trigger message rescheduling on the backend"
+---
+
+## Function Signature
+
+```typescript
+async function reschedule(): Promise<RescheduleState>
+```
+
+**Source:** `src/lib/actions/reschedule/reschedule.ts:10`
+
+## Parameters
+
+This function takes no parameters. Unlike other server actions in this project, it doesn't use the `prevState` and `formData` pattern.
+
+## Return Value
+
+<ResponseField name="RescheduleState" type="object">
+  <Expandable title="Success Response">
+    <ResponseField name="success" type="boolean">
+      Set to `true` when the reschedule operation completes successfully
+    </ResponseField>
+  </Expandable>
+  
+  <Expandable title="Error Response">
+    <ResponseField name="success" type="boolean">
+      Set to `false` when an error occurs
+    </ResponseField>
+    <ResponseField name="error" type="string" optional>
+      Error message describing what went wrong
+      
+      **Possible errors:**
+      - Error message from caught exception
+      - "Unknown error" for non-Error exceptions
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Behavior
+
+1. **API Call**: Makes a GET request to `{BACKEND_URL}/messages/reschedule`
+2. **Authentication**: Uses Basic Auth with environment credentials
+3. **Revalidation**: Calls `revalidatePath("/")` on success to refresh the home page
+4. **Error Handling**: Returns `success: false` with optional error message
+
+## Usage Example
+
+### With Server Action
+
+```typescript
+import reschedule from "@/lib/actions/reschedule/reschedule";
+
+function RescheduleButton() {
+  const handleReschedule = async () => {
+    const result = await reschedule();
+    
+    if (result.success) {
+      alert("Messages rescheduled successfully!");
+    } else {
+      alert(result.error || "Failed to reschedule messages");
+    }
+  };
+  
+  return (
+    <button onClick={handleReschedule}>
+      Reschedule All Messages
+    </button>
+  );
+}
+```
+
+### With useTransition for Better UX
+
+```typescript
+import { useTransition } from "react";
+import reschedule from "@/lib/actions/reschedule/reschedule";
+
+function RescheduleButton() {
+  const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<RescheduleState | null>(null);
+  
+  const handleReschedule = () => {
+    startTransition(async () => {
+      const res = await reschedule();
+      setResult(res);
+    });
+  };
+  
+  return (
+    <div>
+      <button onClick={handleReschedule} disabled={isPending}>
+        {isPending ? "Rescheduling..." : "Reschedule All Messages"}
+      </button>
+      {result?.success && <p>Successfully rescheduled!</p>}
+      {result?.error && <p>Error: {result.error}</p>}
+    </div>
+  );
+}
+```
+
+### With Server Component
+
+```typescript
+// app/actions.ts
+"use server";
+import reschedule from "@/lib/actions/reschedule/reschedule";
+
+export async function handleReschedule() {
+  return await reschedule();
+}
+
+// app/reschedule-button.tsx
+import { handleReschedule } from "./actions";
+
+function RescheduleButton() {
+  return (
+    <form action={handleReschedule}>
+      <button type="submit">Reschedule All Messages</button>
+    </form>
+  );
+}
+```
+
+## Backend Endpoint
+
+**GET** `/messages/reschedule`
+
+**Headers:**
+- `Authorization`: Basic authentication
+
+**Body:** None
+
+**Response:** The function doesn't parse the response body, only checks the status code.
+
+## What Does Rescheduling Do?
+
+The reschedule operation typically:
+- Recalculates send times for all pending messages
+- Updates message schedules based on current date/time
+- Handles messages that may have missed their send window
+- Reorders the message queue
+
+<Note>
+The exact behavior depends on your backend implementation. Check your backend API documentation for specific details.
+</Note>
+
+## Error Handling
+
+The function catches all errors and returns a structured response:
+
+```typescript
+try {
+  const response = await fetch(`${process.env.BACKEND_URL}/messages/reschedule`, {
+    method: "GET",
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.USERNAME}:${process.env.PASSWORD}`
+      ).toString("base64")}`,
+    },
+  });
+  
+  if (!response.ok) {
+    return { success: false };
+  }
+  
+  revalidatePath("/");
+  return { success: true };
+} catch (e) {
+  return { 
+    success: false, 
+    error: e instanceof Error ? e.message : "Unknown error" 
+  };
+}
+```
+
+## Differences from Other Server Actions
+
+- **No Parameters**: Doesn't follow the `(prevState, formData)` pattern
+- **GET Request**: Uses GET instead of POST
+- **Simple Response**: Only returns success/error, no complex state
+- **No Validation**: No Zod schema or form data validation
+- **Direct Invocation**: Can be called directly without form submission
+
+## Best Practices
+
+1. **User Feedback**: Provide clear feedback during the operation
+2. **Loading States**: Show loading indicator while rescheduling
+3. **Error Messages**: Display helpful error messages to users
+4. **Confirmation**: Consider asking for confirmation before rescheduling
+5. **Permissions**: Ensure only authorized users can trigger rescheduling

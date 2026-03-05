@@ -1,0 +1,508 @@
+---
+title: 'Server Actions'
+description: 'Understanding React Server Actions for server-side data mutations'
+icon: 'bolt'
+---
+
+## What are Server Actions?
+
+Server Actions are asynchronous functions that run on the server. They can be called from Client Components and Server Components, providing a seamless way to perform server-side operations like data mutations, API calls, and database operations.
+
+<Note>
+Server Actions are marked with the `"use server"` directive and always run on the server, even when called from client-side code.
+</Note>
+
+## The "use server" Directive
+
+Every server action file must start with the `"use server"` directive at the top:
+
+**From** `src/lib/actions/message/createMessage.ts:1`:
+
+```typescript
+"use server";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+```
+
+<Warning>
+The `"use server"` directive must be at the very top of the file, before any imports.
+</Warning>
+
+## Server Action Structure
+
+All server actions in this project follow a consistent pattern:
+
+<Steps>
+  <Step title="Define State Interface">
+    Define TypeScript interface for the return state
+  </Step>
+  
+  <Step title="Create Zod Schema">
+    Define validation schema for input data
+  </Step>
+  
+  <Step title="Implement Action Function">
+    Create async function that validates, processes, and returns state
+  </Step>
+  
+  <Step title="Revalidate Cache">
+    Call `revalidatePath()` to refresh cached data after mutations
+  </Step>
+</Steps>
+
+## Complete Server Action Example
+
+Let's examine a full server action for creating messages:
+
+**From** `src/lib/actions/message/createMessage.ts`:
+
+<CodeGroup>
+```typescript State Interface
+interface MessagePrevState {
+  success?: boolean;
+  error?: string;
+}
+```
+
+```typescript Zod Schema
+const messageSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number()
+    .min(1, "Send after is required and minimum after 1 day"),
+});
+```
+
+```typescript Action Function
+export default async function createMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  try {
+    // Validate form data
+    const parsedData = messageSchema.safeParse({
+      content: formData.get("content"),
+      sendToPhone: formData.get("sendToPhone"),
+      sendAfter: Number(formData.get("sendAfter")),
+    });
+
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/messages/create-one`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+          ).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsedData.data),
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        error: `Backend Error: ${response.status} ${response.statusText}`,
+      };
+    }
+    
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Something went wrong",
+    };
+  }
+}
+```
+</CodeGroup>
+
+## Form Validation with Zod
+
+All server actions use [Zod](https://zod.dev/) for runtime type validation:
+
+### Basic Validation
+
+**From** `src/lib/actions/people/createPerson.ts:11-16`:
+
+```typescript
+const personSchema = z.object({
+  name: z.string().min(1, "Name cannot be empty"),
+  phone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+});
+```
+
+### Validation with safeParse
+
+Use `safeParse` to validate without throwing errors:
+
+```typescript
+const parsedData = personSchema.safeParse({
+  name: formData.get("name"),
+  phone: formData.get("phone"),
+});
+
+if (!parsedData.success) {
+  return {
+    error: parsedData.error.errors.map((err) => err.message).join(", "),
+  };
+}
+
+// parsedData.data is now type-safe
+const { name, phone } = parsedData.data;
+```
+
+<Note>
+`safeParse` returns an object with a `success` boolean and either `data` (if valid) or `error` (if invalid).
+</Note>
+
+### Complex Validation
+
+**From** `src/lib/actions/message/updateMessage.ts:11-19`:
+
+```typescript
+const messageSchema = z.object({
+  id: z.string().min(1, "ID is required"),
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number().min(0, "Send after is required and minimum after 0 day"),
+});
+```
+
+## Using Server Actions in Client Components
+
+Server Actions integrate seamlessly with the `useActionState` hook (React 19):
+
+**From** `src/components/CreateMessageForm.tsx:22-39`:
+
+```tsx
+"use client";
+
+import { useActionState, useEffect } from "react";
+import createMessage from "@/lib/actions/message/createMessage";
+import { toast } from "sonner";
+
+export default function MessageUpdateForm({ people }: { people: People[] }) {
+  const [createState, createAction, createIsPending] = useActionState(
+    createMessage,
+    {}
+  );
+  
+  useEffect(() => {
+    if (createState.success) {
+      toast.success("Message created successfully", {
+        richColors: true,
+      });
+    }
+    if (createState.error) {
+      toast.error("Message creation failed", {
+        description: createState.error,
+        duration: 3500,
+        richColors: true,
+      });
+    }
+  }, [createState]);
+
+  return (
+    <form action={createAction} className="space-y-3 flex flex-col">
+      <Textarea name="content" />
+      <Button type="submit" disabled={createIsPending}>
+        Add
+      </Button>
+    </form>
+  );
+}
+```
+
+### useActionState Hook
+
+The `useActionState` hook returns three values:
+
+<CardGroup cols={3}>
+  <Card title="createState" icon="database">
+    Current state returned from the server action
+  </Card>
+  
+  <Card title="createAction" icon="play">
+    Function to pass to form's action prop
+  </Card>
+  
+  <Card title="createIsPending" icon="spinner">
+    Boolean indicating if action is currently running
+  </Card>
+</CardGroup>
+
+## The revalidatePath Pattern
+
+After mutating data, you must revalidate the cache to reflect changes:
+
+**From** `src/lib/actions/message/createMessage.ts:58-59`:
+
+```typescript
+revalidatePath("/");
+return { success: true };
+```
+
+**From** `src/lib/actions/reschedule/reschedule.ts:24-25`:
+
+```typescript
+revalidatePath("/");
+return { success: true };
+```
+
+<Note>
+`revalidatePath("/")` tells Next.js to re-fetch all data for the home page, ensuring the UI reflects the latest database state.
+</Note>
+
+### Why revalidatePath is Important
+
+<Steps>
+  <Step title="Cache Invalidation">
+    Next.js caches Server Component renders for performance. `revalidatePath` clears this cache.
+  </Step>
+  
+  <Step title="Automatic Re-render">
+    After cache invalidation, Server Components automatically re-fetch data and re-render.
+  </Step>
+  
+  <Step title="Consistent UI">
+    Users see updated data immediately without manual page refresh.
+  </Step>
+</Steps>
+
+## Error Handling Pattern
+
+All server actions use consistent error handling:
+
+```typescript
+try {
+  // Validation
+  const parsedData = schema.safeParse(data);
+  if (!parsedData.success) {
+    return { error: "Validation error message" };
+  }
+
+  // API call
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    return { error: `Backend Error: ${response.status}` };
+  }
+
+  // Success
+  revalidatePath("/");
+  return { success: true };
+} catch (error) {
+  return {
+    error: error instanceof Error ? error.message : "Something went wrong",
+  };
+}
+```
+
+<Warning>
+Always return error messages to the client instead of throwing errors. This provides better user experience and debugging information.
+</Warning>
+
+## Server Actions Without Forms
+
+Server Actions can be called directly without forms:
+
+**From** `src/lib/actions/reschedule/reschedule.ts:10-29`:
+
+```typescript
+"use server"
+
+import { revalidatePath } from "next/cache";
+
+interface RescheduleState {
+    success: boolean;
+    error?: string;
+}
+
+export default async function reschedule(): Promise<RescheduleState> {
+    try {
+        const response = await fetch(`${process.env.BACKEND_URL}/messages/reschedule`, {
+            method: "GET",
+            headers: {
+                Authorization: `Basic ${Buffer.from(
+                    `${process.env.USERNAME}:${process.env.PASSWORD}`
+                ).toString("base64")}`,
+            },
+        })
+        if (!response.ok) {
+            return { success: false };
+        }
+        revalidatePath("/");
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Unknown error" };
+    }
+}
+```
+
+This action takes no form data and can be triggered by a button click.
+
+## Real-World Examples
+
+<Accordion title="Create Person Action">
+**From** `src/lib/actions/people/createPerson.ts`:
+
+```typescript
+"use server";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+interface PersonPrevState {
+  success?: boolean;
+  error?: string;
+}
+
+const personSchema = z.object({
+  name: z.string().min(1, "Name cannot be empty"),
+  phone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+});
+
+export default async function createPerson(
+  prevState: PersonPrevState,
+  formData: FormData
+): Promise<PersonPrevState> {
+  try {
+    const parsedData = personSchema.safeParse({
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+    });
+
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/people/create-one`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+          ).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsedData.data),
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        error: `Backend Error: ${response.status} ${response.statusText}`,
+      };
+    }
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Something went wrong",
+    };
+  }
+}
+```
+</Accordion>
+
+<Accordion title="Update Message Action">
+**From** `src/lib/actions/message/updateMessage.ts:21-66`:
+
+```typescript
+export default async function updateMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  try {
+    const parsedData = messageSchema.safeParse({
+      id: formData.get("id"),
+      content: formData.get("content"),
+      sendToPhone: formData.get("sendToPhone"),
+      sendAfter: Number(formData.get("sendAfter")),
+    });
+
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/messages/update-one/${parsedData.data.id}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+          ).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsedData.data),
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        error: `Backend Error: ${response.status} ${response.statusText}`,
+      };
+    }
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Something went wrong",
+    };
+  }
+}
+```
+</Accordion>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Always Validate" icon="check">
+    Use Zod schemas to validate all input data before processing
+  </Card>
+  
+  <Card title="Return State" icon="arrow-left">
+    Always return success/error state instead of throwing errors
+  </Card>
+  
+  <Card title="Revalidate Cache" icon="rotate">
+    Call `revalidatePath()` after data mutations to update the UI
+  </Card>
+  
+  <Card title="Type Safety" icon="shield">
+    Define TypeScript interfaces for state and use Zod for runtime validation
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/concepts/authentication">
+    Learn how authentication works with Server Actions
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/messages/create-message">
+    View all available Server Actions
+  </Card>
+</CardGroup>

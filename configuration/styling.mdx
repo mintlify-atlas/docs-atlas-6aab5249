@@ -1,0 +1,450 @@
+---
+title: Styling & Theming
+description: Customize the look and feel of your application with Tailwind CSS and shadcn/ui
+icon: palette
+---
+
+The Bun Hono Frontend Next.js application uses Tailwind CSS v4 and shadcn/ui components for styling and theming.
+
+## Tailwind CSS Configuration
+
+The application uses Tailwind CSS v4 with PostCSS for processing styles.
+
+### PostCSS Setup
+
+The PostCSS configuration is minimal:
+
+```javascript postcss.config.mjs
+const config = {
+  plugins: ["@tailwindcss/postcss"],
+};
+
+export default config;
+```
+
+### Global Styles
+
+All styles are defined in `src/app/globals.css`:
+
+```css globals.css
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+```
+
+The application imports:
+- **tailwindcss** - Core Tailwind utilities
+- **tw-animate-css** - Animation utilities
+- **Custom dark mode variant** - For dark theme support
+
+## Color System
+
+The application uses CSS custom properties for theming, with separate definitions for light and dark modes.
+
+### Light Mode Colors
+
+```css globals.css
+:root {
+  --main: #ffdc58;
+  --overlay: rgba(0, 0, 0, 0.8);
+
+  --bg: #fef2e8;
+  --bw: #fff;
+  --blank: #000;
+  --border: #000;
+  --text: #000;
+  --mtext: #000;
+  --ring: #000;
+  --ring-offset: #fff;
+
+  --border-radius: 16px;
+  --box-shadow-x: 4px;
+  --box-shadow-y: 4px;
+  --reverse-box-shadow-x: -4px;
+  --reverse-box-shadow-y: -4px;
+  --base-font-weight: 500;
+  --heading-font-weight: 700;
+
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+  --radius: 0.625rem;
+}
+```
+
+### Dark Mode Colors
+
+```css globals.css
+.dark {
+  --bg: #374151;
+  --bw: #212121;
+  --blank: #fff;
+  --border: #000;
+  --text: #e6e6e6;
+  --mtext: #000;
+  --ring: #fff;
+  --ring-offset: #000;
+
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+}
+```
+
+### Semantic Color Tokens
+
+The application uses semantic color tokens for shadcn/ui components:
+
+<CodeGroup>
+```css Light Mode
+--background: oklch(1 0 0);
+--foreground: oklch(0.145 0 0);
+--card: oklch(1 0 0);
+--card-foreground: oklch(0.145 0 0);
+--primary: oklch(0.205 0 0);
+--primary-foreground: oklch(0.985 0 0);
+--secondary: oklch(0.97 0 0);
+--secondary-foreground: oklch(0.205 0 0);
+--muted: oklch(0.97 0 0);
+--muted-foreground: oklch(0.556 0 0);
+--accent: oklch(0.97 0 0);
+--accent-foreground: oklch(0.205 0 0);
+--destructive: oklch(0.577 0.245 27.325);
+```
+
+```css Dark Mode
+--background: oklch(0.145 0 0);
+--foreground: oklch(0.985 0 0);
+--card: oklch(0.205 0 0);
+--card-foreground: oklch(0.985 0 0);
+--primary: oklch(0.922 0 0);
+--primary-foreground: oklch(0.205 0 0);
+--secondary: oklch(0.269 0 0);
+--secondary-foreground: oklch(0.985 0 0);
+--muted: oklch(0.269 0 0);
+--muted-foreground: oklch(0.708 0 0);
+--accent: oklch(0.269 0 0);
+--accent-foreground: oklch(0.985 0 0);
+--destructive: oklch(0.704 0.191 22.216);
+```
+</CodeGroup>
+
+## Customizing Theme Colors
+
+To customize the theme colors, edit the CSS custom properties in `src/app/globals.css`.
+
+<Steps>
+  <Step title="Choose your colors">
+    Decide on your color palette for both light and dark modes.
+  </Step>
+  
+  <Step title="Update CSS variables">
+    Modify the color values in `globals.css`:
+    
+    ```css globals.css
+    :root {
+      --main: #your-primary-color;
+      --bg: #your-background-color;
+      --text: #your-text-color;
+      /* ... other variables */
+    }
+    
+    .dark {
+      --bg: #your-dark-background;
+      --text: #your-dark-text;
+      /* ... other variables */
+    }
+    ```
+  </Step>
+  
+  <Step title="Update semantic tokens">
+    If you want to change shadcn/ui component colors, update the oklch values:
+    
+    ```css globals.css
+    :root {
+      --primary: oklch(/* your primary color */);
+      --accent: oklch(/* your accent color */);
+      /* ... other tokens */
+    }
+    ```
+    
+    <Note>
+      Use the [oklch color picker](https://oklch.com/) to convert your colors to oklch format.
+    </Note>
+  </Step>
+  
+  <Step title="Test both themes">
+    Verify your changes work in both light and dark modes.
+  </Step>
+</Steps>
+
+## Typography
+
+The application uses three Google Fonts loaded in `src/app/layout.tsx`:
+
+### Font Configuration
+
+```typescript layout.tsx
+import { Archivo, Geist, Geist_Mono } from "next/font/google";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+```
+
+### Font Usage
+
+<Card title="Geist Sans" icon="font">
+  Primary sans-serif font for body text and UI elements.
+  
+  CSS Variable: `--font-geist-sans`
+</Card>
+
+<Card title="Archivo" icon="font">
+  Secondary sans-serif font, used for headings and emphasis.
+  
+  CSS Variable: `--font-archivo`
+</Card>
+
+<Card title="Geist Mono" icon="code">
+  Monospace font for code blocks and technical content.
+  
+  CSS Variable: `--font-geist-mono`
+</Card>
+
+### Applying Fonts
+
+Fonts are applied via CSS variables in the body:
+
+```typescript layout.tsx
+<body
+  className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} antialiased`}
+>
+  {children}
+</body>
+```
+
+### Changing Fonts
+
+To use different fonts:
+
+<Steps>
+  <Step title="Import your font">
+    Import from `next/font/google` or `next/font/local`:
+    
+    ```typescript layout.tsx
+    import { Inter } from "next/font/google";
+    
+    const inter = Inter({
+      variable: "--font-inter",
+      subsets: ["latin"],
+    });
+    ```
+  </Step>
+  
+  <Step title="Update body className">
+    Add the font variable to the body className:
+    
+    ```typescript layout.tsx
+    <body className={`${inter.variable} antialiased`}>
+      {children}
+    </body>
+    ```
+  </Step>
+  
+  <Step title="Configure Tailwind">
+    Use the font in your Tailwind classes:
+    
+    ```css globals.css
+    @theme {
+      --font-sans: var(--font-inter);
+    }
+    ```
+  </Step>
+</Steps>
+
+## shadcn/ui Configuration
+
+The application uses shadcn/ui components configured via `components.json`:
+
+```json components.json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "lucide"
+}
+```
+
+### Key Configuration Options
+
+<ParamField path="style" type="string" default="new-york">
+  The shadcn/ui style variant. Options: `default` or `new-york`.
+</ParamField>
+
+<ParamField path="rsc" type="boolean" default="true">
+  Enables React Server Components support.
+</ParamField>
+
+<ParamField path="tailwind.baseColor" type="string" default="neutral">
+  The base color palette for components. Options: `slate`, `gray`, `zinc`, `neutral`, `stone`.
+</ParamField>
+
+<ParamField path="tailwind.cssVariables" type="boolean" default="true">
+  Uses CSS variables for theming instead of hardcoded colors.
+</ParamField>
+
+<ParamField path="iconLibrary" type="string" default="lucide">
+  The icon library to use. Currently set to Lucide React.
+</ParamField>
+
+## Adding shadcn/ui Components
+
+To add new shadcn/ui components:
+
+```bash
+pnpm dlx shadcn@latest add button
+```
+
+This will:
+1. Download the component code to `src/components/ui/`
+2. Install any required dependencies
+3. Configure the component with your theme
+
+### Available Components
+
+The project currently includes:
+
+- `@radix-ui/react-dialog` - Modal dialogs
+- `@radix-ui/react-label` - Form labels
+- `@radix-ui/react-scroll-area` - Scrollable areas
+- `@radix-ui/react-select` - Select dropdowns
+- `@radix-ui/react-separator` - Visual separators
+- `@radix-ui/react-slot` - Slot composition
+- `sonner` - Toast notifications
+- `vaul` - Drawer component
+
+## Border Radius & Shadows
+
+The application uses custom border radius and shadow values:
+
+```css globals.css
+:root {
+  --border-radius: 16px;
+  --box-shadow-x: 4px;
+  --box-shadow-y: 4px;
+  --shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--border);
+}
+```
+
+These create a distinctive "brutalist" design style with bold shadows and rounded corners.
+
+### Customizing Shadows
+
+To adjust the shadow style:
+
+```css globals.css
+:root {
+  /* Softer shadows */
+  --box-shadow-x: 2px;
+  --box-shadow-y: 2px;
+  
+  /* No shadows */
+  --box-shadow-x: 0px;
+  --box-shadow-y: 0px;
+  
+  /* Larger shadows */
+  --box-shadow-x: 8px;
+  --box-shadow-y: 8px;
+}
+```
+
+## Base Styles
+
+The application applies base styles to all elements:
+
+```css globals.css
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+```
+
+This ensures:
+- Consistent border colors across all elements
+- Proper outline colors for accessibility
+- Theme-aware background and text colors
+
+## Dark Mode
+
+Dark mode is handled via the `next-themes` package (included in dependencies).
+
+### How It Works
+
+1. The `ThemeProvider` wraps the application (configured in your layout)
+2. The `.dark` class is toggled on the HTML element
+3. CSS custom properties update automatically based on the class
+
+### Testing Dark Mode
+
+To test dark mode manually, add the class in DevTools:
+
+```html
+<html class="dark">
+  <!-- Your app -->
+</html>
+```
+
+## Utility Classes
+
+The application defines custom color utilities:
+
+```css globals.css
+@theme {
+  --color-main: var(--main);
+  --color-overlay: var(--overlay);
+  --color-bg: var(--bg);
+  --color-bw: var(--bw);
+  --color-blank: var(--blank);
+  --color-text: var(--text);
+  --color-mtext: var(--mtext);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-ring-offset: var(--ring-offset);
+}
+```
+
+Use these in your components:
+
+```tsx
+<div className="bg-main text-mtext">Primary button</div>
+<div className="bg-bg text-text">Background content</div>
+<div className="border-border">Bordered element</div>
+```

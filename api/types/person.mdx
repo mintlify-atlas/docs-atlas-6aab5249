@@ -1,0 +1,143 @@
+---
+title: 'People'
+description: 'People type definition for message recipients'
+---
+
+## People
+
+The `People` interface represents a person/recipient in the system who can receive scheduled messages.
+
+### Type Definition
+
+```typescript
+export interface People {
+  id: string;
+  name: string;
+  phone: string;
+}
+```
+
+### Properties
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the person record.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  The person's full name. Must not be empty.
+  
+  <Note>
+    This name is displayed in the UI when showing message recipients.
+  </Note>
+</ResponseField>
+
+<ResponseField name="phone" type="string" required>
+  The person's phone number in Bangladesh format.
+  
+  <Expandable title="Phone Number Validation">
+    Phone numbers must follow this strict pattern:
+    
+    **Pattern:** `8801XXXXXXXXX`
+    
+    **Rules:**
+    - Must start with `8801` (Bangladesh country code + mobile prefix)
+    - Followed by exactly 9 digits
+    - Total length: 13 characters
+    - No spaces, dashes, or other separators
+    
+    **Valid Examples:**
+    - `8801712345678`
+    - `8801912345678`
+    - `8801512345678`
+    
+    **Invalid Examples:**
+    - `01712345678` (missing country code)
+    - `+8801712345678` (includes + symbol)
+    - `8801 712345678` (contains space)
+    - `880171234567` (too short)
+  </Expandable>
+</ResponseField>
+
+### Usage
+
+This type is used throughout the application:
+
+**In Components:**
+- `Messages.tsx:50` - Storing people list from API
+- `Messages.tsx:56` - Passed to Message component
+- `Messages.tsx:70` - Passed to CreateMessageForm
+- `Messages.tsx:77` - Message component props
+- `Messages.tsx:99` - Passed to MessageUpdateForm
+
+**In API Responses:**
+- Returned from `GET /people/all` endpoint
+- Used in person creation operations
+
+**In Forms:**
+- Used to populate recipient dropdowns in message forms
+- Displayed as options when creating/updating messages
+
+**Example Usage:**
+
+<CodeGroup>
+```typescript Fetching People
+const response = await fetch('/people/all', {
+  headers: {
+    Authorization: `Basic ${credentials}`
+  }
+});
+
+const people: People[] = await response.json();
+
+people.forEach((person: People) => {
+  console.log(`${person.name}: ${person.phone}`);
+});
+```
+
+```typescript Component Props
+import { People } from '@/components/Messages';
+
+function RecipientSelector({ people }: { people: People[] }) {
+  return (
+    <select>
+      {people.map((person: People) => (
+        <option key={person.id} value={person.phone}>
+          {person.name} ({person.phone})
+        </option>
+      ))}
+    </select>
+  );
+}
+```
+
+```typescript Type Guard
+function isPeople(obj: any): obj is People {
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.name === 'string' &&
+    typeof obj.phone === 'string' &&
+    /^8801\d{9}$/.test(obj.phone)
+  );
+}
+```
+</CodeGroup>
+
+### Phone Number Validation
+
+The phone number format is enforced using Zod schema validation in server actions:
+
+```typescript
+const personSchema = z.object({
+  name: z.string().min(1, "Name cannot be empty"),
+  phone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+});
+```
+
+This validation ensures data consistency across the application.
+
+### Related Types
+
+- [Message](/api/types/message) - References People via `sendTo` property
+- [PersonPrevState](/api/types/state#personprevstate) - Person form state

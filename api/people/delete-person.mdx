@@ -1,0 +1,163 @@
+---
+title: "deletePerson"
+description: "Server action to delete a person record"
+---
+
+## Function Signature
+
+```typescript
+async function deletePerson(
+  prevState: PersonPrevState,
+  formData: FormData
+): Promise<PersonPrevState>
+```
+
+**Source:** `src/lib/actions/people/deletePerson.ts:9`
+
+## Parameters
+
+<ParamField path="prevState" type="PersonPrevState" required>
+  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  
+  <Expandable title="PersonPrevState">
+    <ResponseField name="success" type="boolean">
+      Indicates if the previous operation was successful
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message from the previous operation
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="formData" type="FormData" required>
+  Form data containing the person identifier
+  
+  <Expandable title="FormData Fields">
+    <ParamField path="id" type="string" required>
+      The unique identifier of the person to delete
+      
+      **Validation:**
+      - Must be present (non-null, non-empty)
+      - Error: "ID is required"
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+<ResponseField name="PersonPrevState" type="object">
+  <Expandable title="Success Response">
+    <ResponseField name="success" type="boolean">
+      Set to `true` when the person is deleted successfully
+    </ResponseField>
+  </Expandable>
+  
+  <Expandable title="Error Response">
+    <ResponseField name="error" type="string">
+      Error message describing what went wrong
+      
+      **Possible errors:**
+      - "ID is required" - No ID provided in form data
+      - "Backend Error: {status} {statusText}" - Backend API error
+      - Error message or "Something went wrong" - Network or unexpected errors
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Validation
+
+This function performs simple validation without Zod:
+
+```typescript
+const id = formData.get("id");
+if (!id) {
+  return {
+    error: "ID is required",
+  };
+}
+```
+
+## Behavior
+
+1. **Validation**: Checks that the ID field is present
+2. **API Call**: Makes a POST request to `{BACKEND_URL}/people/delete-one/{id}`
+3. **Authentication**: Uses Basic Auth with environment credentials
+4. **Revalidation**: Calls `revalidatePath("/")` on success to refresh the home page
+5. **Error Handling**: Returns structured error messages
+
+## Usage Example
+
+```typescript
+import { useFormState } from "react-dom";
+import deletePerson from "@/lib/actions/people/deletePerson";
+
+function DeletePersonButton({ personId }: { personId: string }) {
+  const [state, formAction] = useFormState(deletePerson, {});
+  
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="id" value={personId} />
+      <button type="submit" className="danger">Delete Person</button>
+      {state.error && <p className="error">{state.error}</p>}
+      {state.success && <p className="success">Person deleted!</p>}
+    </form>
+  );
+}
+```
+
+## Alternative Usage with Confirmation
+
+```typescript
+function PersonList({ people }) {
+  const handleDelete = async (personId: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete ${name}?`)) {
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.set("id", personId);
+    const result = await deletePerson({}, formData);
+    
+    if (result.success) {
+      console.log("Person deleted");
+    } else {
+      alert(result.error);
+    }
+  };
+  
+  return (
+    <ul>
+      {people.map((person) => (
+        <li key={person.id}>
+          {person.name} - {person.phone}
+          <button onClick={() => handleDelete(person.id, person.name)}>
+            Delete
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Backend Endpoint
+
+**POST** `/people/delete-one/:id`
+
+**Headers:**
+- `Authorization`: Basic authentication
+
+**Body:** None (ID is in the URL path)
+
+## Cascading Effects
+
+Deleting a person may affect related data:
+- **Messages**: Any scheduled messages associated with the deleted person's phone number may become orphaned
+- **Data Integrity**: Ensure your backend handles cascading deletes or orphaned references appropriately
+
+## Best Practices
+
+1. **Confirmation**: Always ask for user confirmation before deleting
+2. **Soft Deletes**: Consider implementing soft deletes on the backend to allow recovery
+3. **Error Handling**: Display clear error messages to users
+4. **Audit Trail**: Log deletion actions for compliance and debugging

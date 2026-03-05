@@ -1,0 +1,145 @@
+---
+title: "createMessage"
+description: "Server action to create a new scheduled message"
+---
+
+## Function Signature
+
+```typescript
+async function createMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState>
+```
+
+**Source:** `src/lib/actions/message/createMessage.ts:21`
+
+## Parameters
+
+<ParamField path="prevState" type="MessagePrevState" required>
+  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  
+  <Expandable title="MessagePrevState">
+    <ResponseField name="success" type="boolean">
+      Indicates if the previous operation was successful
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message from the previous operation
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="formData" type="FormData" required>
+  Form data containing the message details
+  
+  <Expandable title="FormData Fields">
+    <ParamField path="content" type="string" required>
+      The message content to send
+      
+      **Validation:**
+      - Minimum length: 1 character
+      - Error: "Content cannot be empty"
+    </ParamField>
+    
+    <ParamField path="sendToPhone" type="string" required>
+      Phone number to send the message to
+      
+      **Validation:**
+      - Pattern: `/^8801\d{9}$/`
+      - Must start with "8801" followed by exactly 9 digits
+      - Error: "Invalid phone number format. Must be 8801XXXXXXXXX"
+    </ParamField>
+    
+    <ParamField path="sendAfter" type="number" required>
+      Number of days after which to send the message
+      
+      **Validation:**
+      - Minimum: 1 day
+      - Error: "Send after is required and minimum after 1 day"
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+<ResponseField name="MessagePrevState" type="object">
+  <Expandable title="Success Response">
+    <ResponseField name="success" type="boolean">
+      Set to `true` when the message is created successfully
+    </ResponseField>
+  </Expandable>
+  
+  <Expandable title="Error Response">
+    <ResponseField name="error" type="string">
+      Error message describing what went wrong
+      
+      **Possible errors:**
+      - Validation errors: Comma-separated list of field validation failures
+      - Backend errors: "Backend Error: {status} {statusText}"
+      - Generic errors: "Something went wrong"
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Validation Schema
+
+The function uses Zod for validation:
+
+```typescript
+const messageSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number()
+    .min(1, "Send after is required and minimum after 1 day"),
+});
+```
+
+## Behavior
+
+1. **Validation**: Form data is validated against the Zod schema
+2. **API Call**: Makes a POST request to `{BACKEND_URL}/messages/create-one`
+3. **Authentication**: Uses Basic Auth with environment credentials
+4. **Revalidation**: Calls `revalidatePath("/")` on success to refresh the home page
+5. **Error Handling**: Returns structured error messages for validation, backend, or network errors
+
+## Usage Example
+
+```typescript
+import { useFormState } from "react-dom";
+import createMessage from "@/lib/actions/message/createMessage";
+
+function MessageForm() {
+  const [state, formAction] = useFormState(createMessage, {});
+  
+  return (
+    <form action={formAction}>
+      <textarea name="content" placeholder="Message content" />
+      <input name="sendToPhone" placeholder="8801XXXXXXXXX" />
+      <input name="sendAfter" type="number" min="1" />
+      <button type="submit">Create Message</button>
+      {state.error && <p>{state.error}</p>}
+      {state.success && <p>Message created!</p>}
+    </form>
+  );
+}
+```
+
+## Backend Endpoint
+
+**POST** `/messages/create-one`
+
+**Headers:**
+- `Authorization`: Basic authentication
+- `Content-Type`: application/json
+
+**Body:**
+```json
+{
+  "content": "Hello world",
+  "sendToPhone": "8801234567890",
+  "sendAfter": 7
+}
+```

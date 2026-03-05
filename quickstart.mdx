@@ -1,80 +1,191 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get your Message Scheduler app running in minutes
 ---
 
-## Get started in three steps
+## Start the Application
 
-Get your documentation site running locally and make your first customization.
+This guide will take you from a fresh installation to a fully running application.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Verify backend is running">
+    Before starting the frontend, ensure your [Bun Hono Backend](https://github.com/anupom69/bun-hono-backend-optimized) is running and accessible.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+    Test it by visiting:
+    ```
+    http://localhost:3000/time-left
+    ```
+
+    <Note>
+      If you can't access the backend, the frontend will display a "Backend Cannot Be Accessed" error message.
+    </Note>
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the root directory with your backend configuration:
+
+    ```bash .env
+    BACKEND_URL=http://localhost:3000
+    USERNAME="admin"
+    PASSWORD="your-secure-password"
+    ```
+
+    <Warning>
+      Replace `admin` and `your-secure-password` with the **exact** credentials configured in your backend server.
+    </Warning>
+
+    The application uses these credentials for Basic Authentication:
+    ```typescript
+    Authorization: `Basic ${Buffer.from(
+      `${process.env.USERNAME}:${process.env.PASSWORD}`
+    ).toString("base64")}`
+    ```
+  </Step>
+
+  <Step title="Start the development server">
+    Run the development server with your preferred package manager:
+
+    <CodeGroup>
+      ```bash pnpm
+      pnpm run dev
+      ```
+
+      ```bash npm
+      npm run dev
+      ```
+
+      ```bash yarn
+      yarn dev
+      ```
+    </CodeGroup>
+
+    The application will start with Turbopack (Next.js's fast bundler) and be available at:
+    ```
+    http://localhost:3001
+    ```
+  </Step>
+
+  <Step title="Access the application">
+    Open your browser and navigate to:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```
+    http://localhost:3001
+    ```
 
-### Step 2: Deploy your changes
+    You should see the **Message Scheduler** interface with:
+    - A timer badge showing time remaining (e.g., "24 h")
+    - The main heading "Message Scheduler"
+    - A reschedule button
+    - Two panels: **Messages** and **People**
+  </Step>
+</Steps>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+## What You Should See
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+When the application loads successfully, you'll see:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+### Main Dashboard
 
-### Step 3: Go live
+The home page (`src/app/page.tsx`) displays:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```tsx
+<Badge variant="default" className="text-sm font-bold p-2 px-2">
+  <Clock className="size-4" /> {data.timeLeft} h
+</Badge>
+<h1 className="text-lg font-bold">Message Scheduler</h1>
+```
 
-## Next steps
+- **Time Left Badge**: Shows hours remaining until messages are sent
+- **Messages Section**: Displays all scheduled messages with:
+  - Message content preview
+  - Recipient name and phone
+  - Days until message sends
+- **People Section**: Lists all contacts
+- **Add Message Button**: Create new scheduled messages
 
-Now that you have your docs running, explore these key features:
+### Application Features
+
+The interface provides:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Message Management" icon="envelope">
+    View, create, update, and delete scheduled messages. Each message shows content preview, recipient, and send timing.
+  </Card>
+  
+  <Card title="People Management" icon="users">
+    Manage your contact list. Add people with names and phone numbers to send messages to.
+  </Card>
+  
+  <Card title="Schedule Timer" icon="clock">
+    Monitor time remaining before scheduled messages are sent. Adjust the schedule as needed.
+  </Card>
+  
+  <Card title="Responsive Design" icon="mobile">
+    Mobile-friendly interface using Radix UI components and Tailwind CSS, adapting to any screen size.
+  </Card>
 </CardGroup>
 
+## Verify the Connection
+
+The application fetches data from your backend on page load:
+
+```typescript
+const response = await fetch(`${process.env.BACKEND_URL}/time-left`, {
+  method: "GET",
+});
+```
+
+If successful, you'll see the timer and interface. If it fails, you'll see:
+
+```
+Backend Cannot Be Accessed
+```
+
+### Troubleshooting Connection Issues
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  If you see "Backend Cannot Be Accessed":
+  
+  1. Verify backend is running on the correct port
+  2. Check `.env` file has correct `BACKEND_URL`
+  3. Ensure `USERNAME` and `PASSWORD` match backend credentials
+  4. Test backend directly: `curl http://localhost:3000/time-left`
 </Note>
+
+## Development Commands
+
+Common commands from `package.json`:
+
+<CodeGroup>
+  ```bash Development
+  pnpm run dev
+  # Starts dev server with Turbopack on port 3001
+  ```
+
+  ```bash Build
+  pnpm run build
+  # Creates production build
+  ```
+
+  ```bash Production
+  pnpm run start
+  # Runs production server
+  ```
+
+  ```bash Lint
+  pnpm run lint
+  # Checks code quality with ESLint
+  ```
+</CodeGroup>
+
+## Next Steps
+
+Now that your application is running:
+
+- Explore the **Components** section to understand the UI structure
+- Check the **API Integration** guide to learn how the frontend communicates with the backend
+- Review **Configuration** options for customizing your deployment
+
+<Warning>
+  Remember: The application title is "Last Ping || Scheduling Messages" and uses the tagline "Still Alive..." - this is a message scheduler designed to send automated messages on your behalf.
+</Warning>

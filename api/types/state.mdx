@@ -1,0 +1,354 @@
+---
+title: 'State Types'
+description: 'Server action state types for form handling'
+---
+
+## State Types
+
+State types are used with Next.js server actions and React's `useActionState` hook to manage form submission states. These types follow a consistent pattern for handling success and error states.
+
+## MessagePrevState
+
+State type for message creation and update operations.
+
+### Type Definition
+
+```typescript
+interface MessagePrevState {
+  success?: boolean;
+  error?: string;
+}
+```
+
+### Properties
+
+<ResponseField name="success" type="boolean" optional>
+  Indicates whether the message operation completed successfully.
+  
+  - `true` - Message was created/updated successfully
+  - `undefined` - Operation hasn't completed or failed
+</ResponseField>
+
+<ResponseField name="error" type="string" optional>
+  Error message if the operation failed. Contains detailed information about what went wrong.
+  
+  <Expandable title="Common Error Messages">
+    - `"Content cannot be empty"` - Message content is required
+    - `"Invalid phone number format. Must be 8801XXXXXXXXX"` - Phone validation failed
+    - `"Send after is required and minimum after 1 day"` - Invalid sendAfter value
+    - `"Backend Error: 500 Internal Server Error"` - Backend API error
+    - `"Something went wrong"` - Generic error fallback
+  </Expandable>
+</ResponseField>
+
+### Usage
+
+Used with the `createMessage` server action in `src/lib/actions/message/createMessage.ts:21-24`:
+
+<CodeGroup>
+```typescript Server Action
+import { MessagePrevState } from './types';
+
+export default async function createMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  try {
+    // Validation and processing
+    const parsedData = messageSchema.safeParse({
+      content: formData.get("content"),
+      sendToPhone: formData.get("sendToPhone"),
+      sendAfter: Number(formData.get("sendAfter")),
+    });
+
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+
+    // API call...
+    return { success: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Something went wrong",
+    };
+  }
+}
+```
+
+```typescript Component Usage
+import { useActionState } from 'react';
+import createMessage from '@/lib/actions/message/createMessage';
+
+function CreateMessageForm() {
+  const [state, formAction] = useActionState(
+    createMessage,
+    {} as MessagePrevState
+  );
+
+  return (
+    <form action={formAction}>
+      {state.error && (
+        <div className="error">{state.error}</div>
+      )}
+      {state.success && (
+        <div className="success">Message created!</div>
+      )}
+      {/* form fields */}
+    </form>
+  );
+}
+```
+</CodeGroup>
+
+---
+
+## PersonPrevState
+
+State type for person creation and update operations.
+
+### Type Definition
+
+```typescript
+interface PersonPrevState {
+  success?: boolean;
+  error?: string;
+}
+```
+
+### Properties
+
+<ResponseField name="success" type="boolean" optional>
+  Indicates whether the person operation completed successfully.
+  
+  - `true` - Person was created/updated successfully
+  - `undefined` - Operation hasn't completed or failed
+</ResponseField>
+
+<ResponseField name="error" type="string" optional>
+  Error message if the operation failed.
+  
+  <Expandable title="Common Error Messages">
+    - `"Name cannot be empty"` - Name is required
+    - `"Invalid phone number format. Must be 8801XXXXXXXXX"` - Phone validation failed
+    - `"Backend Error: 500 Internal Server Error"` - Backend API error
+    - `"Something went wrong"` - Generic error fallback
+  </Expandable>
+</ResponseField>
+
+### Usage
+
+Used with the `createPerson` server action in `src/lib/actions/people/createPerson.ts:18-21`:
+
+<CodeGroup>
+```typescript Server Action
+import { PersonPrevState } from './types';
+
+export default async function createPerson(
+  prevState: PersonPrevState,
+  formData: FormData
+): Promise<PersonPrevState> {
+  try {
+    const parsedData = personSchema.safeParse({
+      name: formData.get("name"),
+      phone: formData.get("phone"),
+    });
+
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+
+    // API call...
+    return { success: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Something went wrong",
+    };
+  }
+}
+```
+
+```typescript Component Usage
+import { useActionState } from 'react';
+import createPerson from '@/lib/actions/people/createPerson';
+
+function CreatePersonForm() {
+  const [state, formAction] = useActionState(
+    createPerson,
+    {} as PersonPrevState
+  );
+
+  return (
+    <form action={formAction}>
+      {state.error && <p className="text-red-500">{state.error}</p>}
+      {state.success && <p className="text-green-500">Person added!</p>}
+      
+      <input name="name" placeholder="Name" />
+      <input name="phone" placeholder="Phone" />
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+</CodeGroup>
+
+---
+
+## RescheduleState
+
+State type for the message rescheduling operation.
+
+### Type Definition
+
+```typescript
+interface RescheduleState {
+  success: boolean;
+  error?: string;
+}
+```
+
+### Properties
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the reschedule operation completed successfully.
+  
+  <Note>
+    Unlike other state types, `success` is **required** (not optional) in RescheduleState.
+  </Note>
+  
+  - `true` - Messages were rescheduled successfully
+  - `false` - Reschedule operation failed
+</ResponseField>
+
+<ResponseField name="error" type="string" optional>
+  Error message if the operation failed. Only present when `success` is `false`.
+  
+  Possible values:
+  - Error message from caught exception
+  - `"Unknown error"` - Fallback for non-Error exceptions
+</ResponseField>
+
+### Key Difference
+
+<Note>
+  **Important:** `RescheduleState.success` is **required**, while `MessagePrevState.success` and `PersonPrevState.success` are **optional**.
+  
+  This means a RescheduleState always has an explicit success value (`true` or `false`), whereas other state types use `undefined` to indicate pending/initial state.
+</Note>
+
+### Usage
+
+Used with the `reschedule` server action in `src/lib/actions/reschedule/reschedule.ts:10`:
+
+<CodeGroup>
+```typescript Server Action
+import { RescheduleState } from './types';
+
+export default async function reschedule(): Promise<RescheduleState> {
+  try {
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/messages/reschedule`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${credentials}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      return { success: false };
+    }
+    
+    revalidatePath("/");
+    return { success: true };
+  } catch (e) {
+    return { 
+      success: false, 
+      error: e instanceof Error ? e.message : "Unknown error" 
+    };
+  }
+}
+```
+
+```typescript Component Usage
+import { useActionState } from 'react';
+import reschedule from '@/lib/actions/reschedule/reschedule';
+
+function RescheduleButton() {
+  const [state, formAction, isPending] = useActionState(
+    reschedule,
+    { success: false } as RescheduleState
+  );
+
+  return (
+    <form action={formAction}>
+      <button type="submit" disabled={isPending}>
+        {isPending ? 'Rescheduling...' : 'Reschedule Messages'}
+      </button>
+      
+      {state.success && (
+        <p className="text-green-500">Rescheduled successfully!</p>
+      )}
+      
+      {!state.success && state.error && (
+        <p className="text-red-500">{state.error}</p>
+      )}
+    </form>
+  );
+}
+```
+</CodeGroup>
+
+---
+
+## State Pattern Overview
+
+All state types follow a consistent pattern for error handling in Next.js server actions:
+
+### Success/Error Pattern
+
+1. **Initial State**: Empty object or `{ success: false }`
+2. **Success**: Returns `{ success: true }`
+3. **Validation Error**: Returns `{ error: "validation message" }`
+4. **API Error**: Returns `{ error: "Backend Error: ..." }`
+5. **Exception**: Returns `{ error: error.message }`
+
+### Best Practices
+
+<CodeGroup>
+```typescript Type-Safe State Checking
+function FormComponent() {
+  const [state, formAction] = useActionState(createMessage, {});
+
+  // Check error first
+  if (state.error) {
+    return <ErrorMessage message={state.error} />;
+  }
+
+  // Then check success
+  if (state.success) {
+    return <SuccessMessage />;
+  }
+
+  // Default: show form
+  return <form action={formAction}>...</form>;
+}
+```
+
+```typescript Initial State
+// For MessagePrevState and PersonPrevState
+const [state, formAction] = useActionState(createMessage, {});
+
+// For RescheduleState (success is required)
+const [state, formAction] = useActionState(reschedule, { success: false });
+```
+</CodeGroup>
+
+### Related Types
+
+- [Message](/api/types/message) - Used in message operations
+- [People](/api/types/person) - Used in person operations

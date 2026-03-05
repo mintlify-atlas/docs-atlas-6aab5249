@@ -1,0 +1,490 @@
+---
+title: UI Components
+description: Reusable shadcn/ui components built on Radix UI primitives
+---
+
+## Overview
+
+The application uses [shadcn/ui](https://ui.shadcn.com/) components, which are beautifully designed, accessible components built on top of [Radix UI](https://www.radix-ui.com/). These components are not imported as a package dependency but are copied into your project's `src/components/ui/` directory, giving you full control over the code.
+
+<Note>
+  All UI components are fully customizable and can be modified directly in the `src/components/ui/` directory.
+</Note>
+
+## Core UI Components
+
+### Button
+
+The Button component provides multiple variants and sizes for different use cases.
+
+<CodeGroup>
+```tsx src/components/ui/button.tsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+        destructive: "bg-destructive text-white shadow-xs hover:bg-destructive/90",
+        outline: "border bg-background shadow-xs hover:bg-accent",
+        secondary: "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md gap-1.5 px-3",
+        lg: "h-10 rounded-md px-6",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({ className, variant, size, asChild = false, ...props }) {
+  const Comp = asChild ? Slot : "button"
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+```
+
+```tsx Usage Example
+import { Button } from "@/components/ui/button";
+import { MailPlus } from "lucide-react";
+
+// Default button
+<Button>Click me</Button>
+
+// Button with icon
+<Button className="w-full">
+  <MailPlus />
+  <span>Add Message</span>
+</Button>
+
+// Destructive button
+<Button variant="destructive">Delete</Button>
+
+// Disabled button
+<Button disabled={isPending}>Submitting...</Button>
+
+// As child (renders as another component)
+<Button asChild>
+  <a href="/quickstart">Navigate</a>
+</Button>
+```
+</CodeGroup>
+
+**Key Features:**
+- Six variants: `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`
+- Four sizes: `sm`, `default`, `lg`, `icon`
+- Support for rendering as child component using Radix UI's `Slot`
+- Automatic disabled state styling
+- Icon support with proper sizing
+
+### Card
+
+The Card component provides a flexible container for displaying content with multiple sub-components.
+
+<CodeGroup>
+```tsx src/components/ui/card.tsx
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }) {
+  return (
+    <div
+      className={cn(
+        "grid auto-rows-min items-start gap-1.5 px-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }) {
+  return <div className={cn("px-6", className)} {...props} />
+}
+
+function CardDescription({ className, ...props }) {
+  return (
+    <div
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+```
+
+```tsx Usage from Messages.tsx
+<Card className="border-1 border-dashed drop-shadow-xl gap-0 mb-2 cursor-pointer">
+  <CardHeader className="font-bold">
+    {message.content.slice(0, 100)} ...
+  </CardHeader>
+  <CardContent className="space-y-2">
+    <CardDescription>
+      Send to: {message.sendTo.name} ({message.sendToPhone})
+    </CardDescription>
+    <CardDescription>
+      Send after: {message.sendAfter} Days
+    </CardDescription>
+  </CardContent>
+</Card>
+```
+</CodeGroup>
+
+**Available Components:**
+- `Card` - Main container
+- `CardHeader` - Top section for titles
+- `CardContent` - Main content area
+- `CardDescription` - Muted text for descriptions
+- `CardTitle` - Bold title text
+- `CardFooter` - Bottom action area
+- `CardAction` - Action button area
+
+### Dialog
+
+The Dialog component creates accessible modal dialogs built on Radix UI's Dialog primitive.
+
+<CodeGroup>
+```tsx src/components/ui/dialog.tsx
+"use client"
+
+import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { XIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+
+function Dialog(props) {
+  return <DialogPrimitive.Root {...props} />
+}
+
+function DialogTrigger(props) {
+  return <DialogPrimitive.Trigger {...props} />
+}
+
+function DialogContent({ className, children, ...props }) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        className={cn(
+          "fixed top-[50%] left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="absolute top-4 right-4">
+          <XIcon />
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+}
+```
+
+```tsx Usage from People.tsx
+<Dialog>
+  <DialogTrigger asChild>
+    <Button className="w-full cursor-pointer flex items-center justify-center">
+      <UserPlus />
+      <span>Add Person</span>
+    </Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogTitle className="text-lg font-semibold text-center">
+      Add Person
+    </DialogTitle>
+    <PersonCreate />
+  </DialogContent>
+</Dialog>
+```
+</CodeGroup>
+
+**Key Features:**
+- Accessible keyboard navigation (ESC to close)
+- Focus trap and return focus
+- Overlay with backdrop
+- Smooth animations
+- Centered positioning
+- Automatic close button
+
+### Input
+
+The Input component provides styled text input fields with validation states.
+
+<CodeGroup>
+```tsx src/components/ui/input.tsx
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }) {
+  return (
+    <input
+      type={type}
+      className={cn(
+        "flex h-9 w-full rounded-md border bg-transparent px-3 py-1 text-base shadow-xs",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+```
+
+```tsx Usage from CreatePersonForm.tsx
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+
+<div className="space-y-2">
+  <Label htmlFor="name" className="font-bold">
+    Name
+  </Label>
+  <Input name="name" />
+</div>
+
+<div className="space-y-2">
+  <Label htmlFor="phone" className="font-bold">
+    Phone
+  </Label>
+  <Input name="phone" />
+</div>
+```
+</CodeGroup>
+
+### Textarea
+
+Multi-line text input for longer content.
+
+```tsx src/components/CreateMessageForm.tsx
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
+
+<div className="space-y-2">
+  <Label htmlFor="content" className="font-bold">
+    Message
+  </Label>
+  <Textarea name="content" className="h-32" />
+</div>
+```
+
+### Select
+
+Dropdown selection menu built on Radix UI Select primitive.
+
+<CodeGroup>
+```tsx src/components/ui/select.tsx
+"use client"
+
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { CheckIcon, ChevronDownIcon } from "lucide-react"
+
+function Select(props) {
+  return <SelectPrimitive.Root {...props} />
+}
+
+function SelectTrigger({ className, children, ...props }) {
+  return (
+    <SelectPrimitive.Trigger
+      className={cn(
+        "flex w-fit items-center justify-between gap-2 rounded-md border px-3 py-2",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDownIcon className="size-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </SelectPrimitive.Trigger>
+  )
+}
+```
+
+```tsx Usage from CreateMessageForm.tsx
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+
+<Select name="sendToPhone">
+  <SelectTrigger className="w-full">
+    <SelectValue placeholder="Send To" />
+  </SelectTrigger>
+  <SelectContent>
+    {people.map((person) => (
+      <SelectItem key={person.id} value={person.phone}>
+        {person.name} ({person.phone})
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+```
+</CodeGroup>
+
+### ScrollArea
+
+Custom scrollable container with styled scrollbars.
+
+```tsx src/components/Messages.tsx
+import { ScrollArea } from "./ui/scroll-area";
+
+<ScrollArea className="max-h-[calc(100vh-180px)] overflow-y-auto pr-4 mb-3">
+  {messages.map((message: Message) => (
+    <Message key={message.id} message={message} people={people} />
+  ))}
+</ScrollArea>
+```
+
+<Note>
+  The ScrollArea uses `calc(100vh-180px)` to ensure the list fits within the viewport while accounting for headers and footers.
+</Note>
+
+### Alert
+
+Display important messages and notifications.
+
+```tsx src/components/CreateMessageForm.tsx
+import { Alert, AlertTitle } from "./ui/alert";
+
+{createState.error && (
+  <Alert variant="destructive">
+    <AlertTitle>{createState.error}</AlertTitle>
+  </Alert>
+)}
+
+{createState.success && (
+  <Alert className="text-green-600">
+    <AlertTitle>Message Created successfully</AlertTitle>
+  </Alert>
+)}
+```
+
+### Label
+
+Accessible form field labels built on Radix UI.
+
+```tsx
+import { Label } from "./ui/label";
+
+<Label htmlFor="name" className="font-bold">
+  Name
+</Label>
+```
+
+## Utility Function
+
+All UI components use the `cn()` utility function for merging Tailwind classes:
+
+```ts src/lib/utils.ts
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+```
+
+This function combines:
+- **clsx** - For conditional class names
+- **tailwind-merge** - For properly merging Tailwind classes (avoiding conflicts)
+
+## Component Variants with CVA
+
+Some components use [class-variance-authority (CVA)](https://cva.style/docs) to manage variants:
+
+```tsx
+import { cva, type VariantProps } from "class-variance-authority"
+
+const buttonVariants = cva(
+  "base-classes",
+  {
+    variants: {
+      variant: {
+        default: "variant-classes",
+        destructive: "variant-classes",
+      },
+      size: {
+        default: "size-classes",
+        sm: "size-classes",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+```
+
+## Styling Philosophy
+
+<CardGroup cols={2}>
+  <Card title="Utility-First" icon="paint-brush">
+    All styling is done with Tailwind utility classes directly in components
+  </Card>
+  <Card title="Composition" icon="layer-group">
+    Complex components are built by composing simpler primitives
+  </Card>
+  <Card title="Accessibility" icon="universal-access">
+    Built on Radix UI primitives ensuring ARIA compliance
+  </Card>
+  <Card title="Customizable" icon="sliders">
+    All code is in your project - modify anything you need
+  </Card>
+</CardGroup>
+
+## Dark Mode Support
+
+All components support dark mode through Tailwind's `dark:` variant:
+
+```tsx
+className="bg-background dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
+```
+
+<Warning>
+  The application uses class-based dark mode. Ensure your Tailwind config has `darkMode: 'class'` configured.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Forms" icon="file-text" href="/components/forms">
+    Learn how these UI components are used in forms
+  </Card>
+  <Card title="Layouts" icon="layout" href="/components/layouts">
+    See how components are arranged in layouts
+  </Card>
+</CardGroup>

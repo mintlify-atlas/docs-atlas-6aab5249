@@ -1,0 +1,152 @@
+---
+title: "deleteMessage"
+description: "Server action to delete a scheduled message"
+---
+
+## Function Signature
+
+```typescript
+async function deleteMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState>
+```
+
+**Source:** `src/lib/actions/message/deleteMessage.ts:9`
+
+## Parameters
+
+<ParamField path="prevState" type="MessagePrevState" required>
+  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  
+  <Expandable title="MessagePrevState">
+    <ResponseField name="success" type="boolean">
+      Indicates if the previous operation was successful
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message from the previous operation
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="formData" type="FormData" required>
+  Form data containing the message identifier
+  
+  <Expandable title="FormData Fields">
+    <ParamField path="id" type="string" required>
+      The unique identifier of the message to delete
+      
+      **Validation:**
+      - Must be present (non-null, non-empty)
+      - Error: "ID is required"
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+<ResponseField name="MessagePrevState" type="object">
+  <Expandable title="Success Response">
+    <ResponseField name="success" type="boolean">
+      Set to `true` when the message is deleted successfully
+    </ResponseField>
+  </Expandable>
+  
+  <Expandable title="Error Response">
+    <ResponseField name="success" type="boolean">
+      Set to `false` when an error occurs
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message describing what went wrong
+      
+      **Possible errors:**
+      - "ID is required" - No ID provided in form data
+      - "Backend Error: {status} {statusText}" - Backend API error
+      - Error message or "Something went wrong" - Network or unexpected errors
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Validation
+
+This function performs simple validation without Zod:
+
+```typescript
+const id = formData.get("id");
+if (!id) {
+  return {
+    success: false,
+    error: "ID is required",
+  };
+}
+```
+
+## Behavior
+
+1. **Validation**: Checks that the ID field is present
+2. **API Call**: Makes a POST request to `{BACKEND_URL}/messages/delete-one/{id}`
+3. **Authentication**: Uses Basic Auth with environment credentials
+4. **Revalidation**: Calls `revalidatePath("/")` on success to refresh the home page
+5. **Error Handling**: Returns structured error messages with `success: false` flag
+
+## Usage Example
+
+```typescript
+import { useFormState } from "react-dom";
+import deleteMessage from "@/lib/actions/message/deleteMessage";
+
+function DeleteMessageButton({ messageId }: { messageId: string }) {
+  const [state, formAction] = useFormState(deleteMessage, {});
+  
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="id" value={messageId} />
+      <button type="submit">Delete Message</button>
+      {state.error && <p>{state.error}</p>}
+      {state.success && <p>Message deleted!</p>}
+    </form>
+  );
+}
+```
+
+## Alternative Usage with FormAction
+
+```typescript
+function MessageList({ messages }) {
+  const handleDelete = async (messageId: string) => {
+    const formData = new FormData();
+    formData.set("id", messageId);
+    const result = await deleteMessage({}, formData);
+    
+    if (result.success) {
+      console.log("Message deleted");
+    } else {
+      console.error(result.error);
+    }
+  };
+  
+  return (
+    <ul>
+      {messages.map((msg) => (
+        <li key={msg.id}>
+          {msg.content}
+          <button onClick={() => handleDelete(msg.id)}>Delete</button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Backend Endpoint
+
+**POST** `/messages/delete-one/:id`
+
+**Headers:**
+- `Authorization`: Basic authentication
+
+**Body:** None (ID is in the URL path)
+
+## Note on Error Responses
+
+Unlike `createMessage` and `updateMessage`, this function explicitly sets `success: false` in error responses, making it easier to check the operation status without relying solely on the presence of an error message.

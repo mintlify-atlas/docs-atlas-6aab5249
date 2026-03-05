@@ -1,0 +1,360 @@
+---
+title: "Message Scheduling"
+description: "Schedule and manage messages to be sent to contacts after a specified delay"
+icon: "clock"
+---
+
+## Overview
+
+The Message Scheduling feature allows you to create, update, and manage messages that will be sent to contacts after a specified number of days. This is useful for automated follow-ups, reminders, and scheduled communications.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Scheduled Delivery" icon="calendar">
+    Messages are sent after a configurable delay in days
+  </Card>
+  <Card title="Contact Selection" icon="user">
+    Select recipients from your People list
+  </Card>
+  <Card title="Full CRUD Operations" icon="database">
+    Create, read, update, and delete scheduled messages
+  </Card>
+  <Card title="Validation" icon="shield-check">
+    Built-in validation for phone numbers and scheduling rules
+  </Card>
+</CardGroup>
+
+## Message Data Structure
+
+Messages contain the following fields:
+
+```typescript
+interface Message {
+  id: string;
+  content: string;
+  sendToPhone: string;
+  sendAfter: number;  // Days to wait before sending
+  sendTo: {
+    name: string;
+  };
+  createdAt: Date;
+}
+```
+
+## Creating a Message
+
+<Steps>
+  <Step title="Open the Add Message Dialog">
+    Click the "Add Message" button at the bottom of the Messages section to open the creation form.
+    
+    ```tsx
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="w-full">
+          <MailPlus />
+          <span>Add Message</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>Add Message</DialogTitle>
+        <CreateMessageForm people={people} />
+      </DialogContent>
+    </Dialog>
+    ```
+  </Step>
+  
+  <Step title="Fill in Message Details">
+    The form contains three required fields:
+    
+    - **Message**: The content to send (textarea)
+    - **Send To**: Select a contact from the dropdown
+    - **Send After**: Number of days to wait before sending
+    
+    ```tsx
+    <form action={createAction} className="space-y-3">
+      <Label htmlFor="content">Message</Label>
+      <Textarea name="content" className="h-32" />
+      
+      <Label htmlFor="sendToPhone">Send To</Label>
+      <Select name="sendToPhone">
+        <SelectTrigger>
+          <SelectValue placeholder="Send To" />
+        </SelectTrigger>
+        <SelectContent>
+          {people.map((person) => (
+            <SelectItem key={person.id} value={person.phone}>
+              {person.name} ({person.phone})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      
+      <Label htmlFor="sendAfter">Send After (in days)</Label>
+      <Input type="number" step={0.0001} min={0} name="sendAfter" />
+      
+      <Button type="submit" disabled={createIsPending}>
+        Add
+      </Button>
+    </form>
+    ```
+  </Step>
+  
+  <Step title="Validation and Submission">
+    When you submit the form, the data is validated using Zod schema before being sent to the backend.
+  </Step>
+</Steps>
+
+## Validation Rules
+
+The application enforces strict validation rules for message creation:
+
+### Phone Number Format
+
+Phone numbers must follow the Bangladesh format:
+
+<Note>
+  **Pattern**: `8801XXXXXXXXX` (13 digits starting with 8801)
+</Note>
+
+```typescript
+const messageSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number()
+    .min(1, "Send after is required and minimum after 1 day"),
+});
+```
+
+### Content Requirements
+
+- Message content cannot be empty
+- Must be a valid string with at least 1 character
+
+### Scheduling Requirements
+
+<Warning>
+  The `sendAfter` field must be at least **1 day** for new messages. When updating, the minimum is 0 days.
+</Warning>
+
+## Updating a Message
+
+Click on any message card to open the update dialog:
+
+```tsx
+<Dialog>
+  <DialogTrigger asChild>
+    <Card className="cursor-pointer">
+      <CardHeader>{message.content.slice(0, 100)} ...</CardHeader>
+      <CardContent>
+        <CardDescription>
+          Send to: {message.sendTo.name} ({message.sendToPhone})
+        </CardDescription>
+        <CardDescription>
+          Send after: {message.sendAfter} Days
+        </CardDescription>
+      </CardContent>
+    </Card>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogTitle>Update Message</DialogTitle>
+    <MessageUpdateForm message={message} people={people} />
+  </DialogContent>
+</Dialog>
+```
+
+The update form is pre-populated with existing values:
+
+```tsx
+<Input type="text" name="id" hidden defaultValue={message.id} />
+<Textarea name="content" defaultValue={message.content} />
+<Select name="sendToPhone" defaultValue={message.sendToPhone}>
+  {/* Options */}
+</Select>
+<Input name="sendAfter" defaultValue={message.sendAfter} />
+```
+
+## Deleting a Message
+
+Within the update dialog, there's a separate delete button:
+
+```tsx
+<form action={deleteAction} className="space-y-3">
+  <Input type="text" name="id" hidden defaultValue={message.id} />
+  <Button type="submit" variant="outline" disabled={deleteIsPending}>
+    Delete
+  </Button>
+</form>
+```
+
+## Server Actions
+
+All message operations use Next.js Server Actions for server-side processing:
+
+<CodeGroup>
+```typescript Create Message Action
+"use server";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const messageSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number()
+    .min(1, "Send after is required and minimum after 1 day"),
+});
+
+export default async function createMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  const parsedData = messageSchema.safeParse({
+    content: formData.get("content"),
+    sendToPhone: formData.get("sendToPhone"),
+    sendAfter: Number(formData.get("sendAfter")),
+  });
+
+  if (!parsedData.success) {
+    return {
+      error: parsedData.error.errors.map((err) => err.message).join(", "),
+    };
+  }
+
+  const response = await fetch(
+    `${process.env.BACKEND_URL}/messages/create-one`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.USERNAME}:${process.env.PASSWORD}`
+        ).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(parsedData.data),
+    }
+  );
+
+  if (!response.ok) {
+    return {
+      error: `Backend Error: ${response.status} ${response.statusText}`,
+    };
+  }
+  
+  revalidatePath("/");
+  return { success: true };
+}
+```
+
+```typescript Update Message Action
+"use server";
+import { revalidatePath } from "next/cache";
+
+export default async function updateMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  const parsedData = messageSchema.safeParse({
+    id: formData.get("id"),
+    content: formData.get("content"),
+    sendToPhone: formData.get("sendToPhone"),
+    sendAfter: Number(formData.get("sendAfter")),
+  });
+
+  const response = await fetch(
+    `${process.env.BACKEND_URL}/messages/update-one/${parsedData.data.id}`,
+    {
+      method: "POST",
+      headers: { /* ... */ },
+      body: JSON.stringify(parsedData.data),
+    }
+  );
+
+  revalidatePath("/");
+  return { success: true };
+}
+```
+
+```typescript Delete Message Action
+"use server"
+import { revalidatePath } from "next/cache";
+
+export default async function deleteMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  const id = formData.get("id");
+  if (!id) {
+    return { success: false, error: "ID is required" };
+  }
+  
+  const response = await fetch(
+    `${process.env.BACKEND_URL}/messages/delete-one/${id}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.USERNAME}:${process.env.PASSWORD}`
+        ).toString("base64")}`,
+      },
+    }
+  );
+  
+  if (!response.ok) {
+    return {
+      success: false,
+      error: `Backend Error: ${response.status} ${response.statusText}`,
+    };
+  }
+  
+  revalidatePath("/");
+  return { success: true };
+}
+```
+</CodeGroup>
+
+## Toast Notifications
+
+The application provides real-time feedback using toast notifications:
+
+```tsx
+useEffect(() => {
+  if (createState.success) {
+    toast.success("Message created successfully", {
+      richColors: true,
+    });
+  }
+  if (createState.error) {
+    toast.error("Message creation failed", {
+      description: createState.error,
+      duration: 3500,
+      richColors: true,
+    });
+  }
+}, [createState]);
+```
+
+## Backend API Endpoints
+
+The frontend communicates with these backend endpoints:
+
+| Endpoint | Method | Purpose |
+|----------|--------|----------|
+| `/messages/all` | GET | Fetch all messages |
+| `/messages/create-one` | POST | Create a new message |
+| `/messages/update-one/:id` | POST | Update an existing message |
+| `/messages/delete-one/:id` | POST | Delete a message |
+
+<Note>
+  All endpoints require Basic Authentication using `USERNAME` and `PASSWORD` environment variables.
+</Note>
+
+## Related Features
+
+- [Person Management](/features/person-management) - Manage contacts to send messages to
+- [Reschedule](/features/reschedule) - Bulk reschedule all messages

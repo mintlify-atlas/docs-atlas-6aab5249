@@ -1,0 +1,110 @@
+---
+title: 'Message'
+description: 'Message type definition for scheduled messages'
+---
+
+## Message
+
+The `Message` interface represents a scheduled message in the system. It contains all the information needed to send a message to a recipient at a specific time.
+
+### Type Definition
+
+```typescript
+export interface Message {
+  id: string;
+  content: string;
+  sendToPhone: string;
+  sendAfter: number;
+  sendTo: {
+    name: string;
+  };
+  createdAt: Date;
+}
+```
+
+### Properties
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the message.
+</ResponseField>
+
+<ResponseField name="content" type="string" required>
+  The message content/body to be sent. Must not be empty.
+</ResponseField>
+
+<ResponseField name="sendToPhone" type="string" required>
+  The recipient's phone number in Bangladesh format.
+  
+  <Expandable title="Phone Format">
+    Must match the pattern: `8801XXXXXXXXX` (Bangladesh phone number format)
+    - Starts with `8801`
+    - Followed by exactly 9 digits
+    - Example: `8801712345678`
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="sendAfter" type="number" required>
+  Number of days to wait before sending the message. Minimum value is 1.
+  
+  <Note>
+    This represents days, not hours or minutes. A value of `7` means the message will be sent 7 days after creation.
+  </Note>
+</ResponseField>
+
+<ResponseField name="sendTo" type="object" required>
+  Information about the recipient.
+  
+  <Expandable title="Object Structure">
+    <ResponseField name="name" type="string" required>
+      The name of the recipient person.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdAt" type="Date" required>
+  Timestamp when the message was created in the system.
+</ResponseField>
+
+### Usage
+
+This type is used throughout the application:
+
+**In Components:**
+- `Messages.tsx:55` - Mapping over messages array
+- `Messages.tsx:77` - Message component props
+
+**In API Responses:**
+- Returned from `GET /messages/all` endpoint
+- Used in message creation and update operations
+
+**Example Usage:**
+
+<CodeGroup>
+```typescript Component Usage
+import { Message } from '@/components/Messages';
+
+function MessageCard({ message }: { message: Message }) {
+  return (
+    <div>
+      <h3>{message.content}</h3>
+      <p>To: {message.sendTo.name} ({message.sendToPhone})</p>
+      <p>Send after: {message.sendAfter} days</p>
+    </div>
+  );
+}
+```
+
+```typescript API Response
+const response = await fetch('/messages/all');
+const messages: Message[] = await response.json();
+
+messages.forEach((message: Message) => {
+  console.log(`${message.id}: ${message.content}`);
+});
+```
+</CodeGroup>
+
+### Related Types
+
+- [People](/api/types/person) - Recipient information
+- [MessagePrevState](/api/types/state#messageprevstate) - Message form state

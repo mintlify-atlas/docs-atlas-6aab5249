@@ -1,0 +1,487 @@
+---
+title: 'Authentication'
+description: 'Understanding the Basic Authentication pattern used in the application'
+icon: 'lock'
+---
+
+## Authentication Overview
+
+This application uses **HTTP Basic Authentication** to secure communication between the Next.js frontend and the Bun/Hono backend. All API requests include Base64-encoded credentials in the `Authorization` header.
+
+<Note>
+Basic Authentication is suitable for this use case since the application runs over HTTPS and credentials are stored securely in environment variables.
+</Note>
+
+## How Basic Auth Works
+
+Basic Authentication follows this pattern:
+
+<Steps>
+  <Step title="Credentials Storage">
+    Username and password are stored in `.env` file as environment variables
+  </Step>
+  
+  <Step title="Base64 Encoding">
+    Credentials are combined as `username:password` and Base64-encoded
+  </Step>
+  
+  <Step title="Authorization Header">
+    Encoded credentials are sent in `Authorization: Basic <encoded>` header
+  </Step>
+  
+  <Step title="Backend Verification">
+    Backend decodes and verifies credentials before processing the request
+  </Step>
+</Steps>
+
+## Environment Variables
+
+Credentials are stored in the `.env` file:
+
+```bash
+BACKEND_URL=http://localhost:3000
+USERNAME=your_username
+PASSWORD=your_password
+```
+
+<Warning>
+Never commit the `.env` file to version control. Always add it to `.gitignore`.
+</Warning>
+
+## Authentication in Server Components
+
+Server Components can directly access environment variables and add authentication headers:
+
+**From** `src/components/Messages.tsx:29-35`:
+
+```tsx
+export default async function Messages() {
+  const data = await fetch(`${process.env.BACKEND_URL}/messages/all`, {
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.USERNAME}:${process.env.PASSWORD}`
+      ).toString("base64")}`,
+    },
+  });
+  if (!data.ok) {
+    notFound();
+  }
+  const messages = await data.json();
+}
+```
+
+**From** `src/components/People.tsx:17-23`:
+
+```tsx
+export default async function People() {
+  const data = await fetch(`${process.env.BACKEND_URL}/people/all`, {
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.USERNAME}:${process.env.PASSWORD}`
+      ).toString("base64")}`,
+    },
+  });
+}
+```
+
+### Base64 Encoding Pattern
+
+The encoding pattern is consistent across the application:
+
+```typescript
+Authorization: `Basic ${Buffer.from(
+  `${process.env.USERNAME}:${process.env.PASSWORD}`
+).toString("base64")}`
+```
+
+This creates a header like:
+```
+Authorization: Basic dXNlcm5hbWU6cGFzc3dvcmQ=
+```
+
+## Authentication in Server Actions
+
+All Server Actions include authentication when making backend requests:
+
+**From** `src/lib/actions/message/createMessage.ts:39-51`:
+
+```typescript
+"use server";
+
+export default async function createMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  try {
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/messages/create-one`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+          ).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsedData.data),
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        error: `Backend Error: ${response.status} ${response.statusText}`,
+      };
+    }
+  } catch (error) {
+    // Error handling
+  }
+}
+```
+
+**From** `src/lib/actions/people/createPerson.ts:35-47`:
+
+```typescript
+const response = await fetch(
+  `${process.env.BACKEND_URL}/people/create-one`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.USERNAME}:${process.env.PASSWORD}`
+      ).toString("base64")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(parsedData.data),
+  }
+);
+```
+
+**From** `src/lib/actions/reschedule/reschedule.ts:13-19`:
+
+```typescript
+const response = await fetch(`${process.env.BACKEND_URL}/messages/reschedule`, {
+    method: "GET",
+    headers: {
+        Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+        ).toString("base64")}`,
+    },
+})
+```
+
+## Security Considerations
+
+### Environment Variables are Server-Only
+
+<Warning>
+Environment variables prefixed without `NEXT_PUBLIC_` are **only available on the server**. They are never exposed to the client.
+</Warning>
+
+This means:
+
+✅ **Safe:** Access in Server Components
+```tsx
+export default async function ServerComponent() {
+  const response = await fetch(process.env.BACKEND_URL);
+}
+```
+
+✅ **Safe:** Access in Server Actions
+```typescript
+"use server";
+
+export default async function serverAction() {
+  const url = process.env.BACKEND_URL;
+}
+```
+
+❌ **Not Possible:** Access in Client Components
+```tsx
+"use client";
+
+export default function ClientComponent() {
+  // process.env.BACKEND_URL is undefined here!
+  const response = await fetch(process.env.BACKEND_URL);
+}
+```
+
+### HTTPS in Production
+
+<Warning>
+Basic Authentication sends credentials in every request. Always use HTTPS in production to encrypt these headers.
+</Warning>
+
+<Steps>
+  <Step title="Development">
+    HTTP is acceptable for local development (localhost)
+  </Step>
+  
+  <Step title="Production">
+    Always use HTTPS to encrypt authentication headers in transit
+  </Step>
+  
+  <Step title="Deployment">
+    Configure your hosting platform (Vercel, Railway, etc.) to enforce HTTPS
+  </Step>
+</Steps>
+
+### Error Handling
+
+All authentication failures should be handled gracefully:
+
+**From** `src/components/Messages.tsx:36-38`:
+
+```tsx
+if (!data.ok) {
+  notFound();
+}
+```
+
+**From** `src/lib/actions/message/createMessage.ts:53-57`:
+
+```typescript
+if (!response.ok) {
+  return {
+    error: `Backend Error: ${response.status} ${response.statusText}`,
+  };
+}
+```
+
+### Backend Validation
+
+The Bun/Hono backend must validate the authentication header:
+
+```typescript
+// Example backend validation (not from this repo)
+app.use('*', async (c, next) => {
+  const authHeader = c.req.header('Authorization');
+  
+  if (!authHeader?.startsWith('Basic ')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const credentials = Buffer.from(
+    authHeader.slice(6),
+    'base64'
+  ).toString();
+  
+  const [username, password] = credentials.split(':');
+  
+  if (username !== expectedUsername || password !== expectedPassword) {
+    return c.json({ error: 'Invalid credentials' }, 401);
+  }
+  
+  await next();
+});
+```
+
+## Complete Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant ServerAction
+    participant Backend
+    
+    User->>Frontend: Submit form
+    Frontend->>ServerAction: Call server action
+    Note over ServerAction: Read USERNAME & PASSWORD<br/>from process.env
+    ServerAction->>ServerAction: Base64 encode credentials
+    ServerAction->>Backend: POST with Authorization header
+    Note over Backend: Decode & verify credentials
+    Backend-->>ServerAction: 200 OK (or 401 Unauthorized)
+    ServerAction-->>Frontend: Return success/error state
+    Frontend->>User: Show result
+```
+
+## Authentication Patterns by Component Type
+
+<Accordion title="Server Components">
+Server Components directly access environment variables:
+
+```tsx
+export default async function ServerComponent() {
+  const response = await fetch(`${process.env.BACKEND_URL}/endpoint`, {
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.USERNAME}:${process.env.PASSWORD}`
+      ).toString("base64")}`,
+    },
+  });
+  const data = await response.json();
+  return <div>{/* Render data */}</div>;
+}
+```
+</Accordion>
+
+<Accordion title="Server Actions (with FormData)">
+Server Actions for form submissions:
+
+```typescript
+"use server";
+
+export default async function formAction(
+  prevState: State,
+  formData: FormData
+): Promise<State> {
+  const response = await fetch(
+    `${process.env.BACKEND_URL}/endpoint`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.USERNAME}:${process.env.PASSWORD}`
+        ).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }
+  );
+  
+  if (!response.ok) {
+    return { error: "Authentication failed" };
+  }
+  
+  return { success: true };
+}
+```
+</Accordion>
+
+<Accordion title="Server Actions (without FormData)">
+Server Actions triggered by button clicks:
+
+```typescript
+"use server";
+
+export default async function simpleAction(): Promise<State> {
+  const response = await fetch(
+    `${process.env.BACKEND_URL}/endpoint`,
+    {
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.USERNAME}:${process.env.PASSWORD}`
+        ).toString("base64")}`,
+      },
+    }
+  );
+  
+  if (!response.ok) {
+    return { success: false };
+  }
+  
+  return { success: true };
+}
+```
+</Accordion>
+
+## Creating an Authentication Utility
+
+To reduce code duplication, create a utility function:
+
+```typescript
+// src/lib/auth.ts
+export function getAuthHeader() {
+  return {
+    Authorization: `Basic ${Buffer.from(
+      `${process.env.USERNAME}:${process.env.PASSWORD}`
+    ).toString("base64")}`,
+  };
+}
+```
+
+Then use it in your components and actions:
+
+```typescript
+import { getAuthHeader } from "@/lib/auth";
+
+const response = await fetch(`${process.env.BACKEND_URL}/endpoint`, {
+  headers: {
+    ...getAuthHeader(),
+    "Content-Type": "application/json",
+  },
+});
+```
+
+<Note>
+This utility function must be imported only in server-side code (Server Components and Server Actions).
+</Note>
+
+## Troubleshooting
+
+<Accordion title="401 Unauthorized Error">
+**Possible causes:**
+- Incorrect username or password in `.env`
+- Backend not properly decoding the Authorization header
+- Credentials not matching backend expectations
+
+**Solution:**
+1. Verify `.env` file has correct credentials
+2. Check backend authentication middleware
+3. Test credentials with curl:
+   ```bash
+   curl -H "Authorization: Basic $(echo -n 'username:password' | base64)" \
+     http://localhost:3000/messages/all
+   ```
+</Accordion>
+
+<Accordion title="Environment Variables Undefined">
+**Possible causes:**
+- Accessing environment variables in Client Components
+- `.env` file not in project root
+- Server not restarted after changing `.env`
+
+**Solution:**
+1. Only access `process.env` in Server Components and Server Actions
+2. Ensure `.env` is in project root (same level as `package.json`)
+3. Restart the development server: `npm run dev`
+</Accordion>
+
+<Accordion title="CORS Errors">
+**Possible causes:**
+- Backend not configured to accept requests from frontend origin
+- Missing CORS headers in backend responses
+
+**Solution:**
+Configure CORS in your Hono backend:
+```typescript
+import { cors } from 'hono/cors';
+
+app.use('*', cors({
+  origin: ['http://localhost:3001'],
+  credentials: true,
+}));
+```
+</Accordion>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="key">
+    Store credentials in `.env` and never commit to version control
+  </Card>
+  
+  <Card title="HTTPS Only" icon="shield">
+    Always use HTTPS in production to encrypt authentication headers
+  </Card>
+  
+  <Card title="Server-Side Only" icon="server">
+    Only access credentials in Server Components and Server Actions
+  </Card>
+  
+  <Card title="Error Messages" icon="triangle-exclamation">
+    Don't expose sensitive details in error messages returned to client
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Actions" icon="bolt" href="/concepts/server-actions">
+    Learn how to implement server-side mutations
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration/environment">
+    Configure environment variables for production
+  </Card>
+</CardGroup>

@@ -1,0 +1,239 @@
+---
+title: "People Component"
+description: "Server component for displaying and managing contact persons"
+icon: "users"
+---
+
+## Overview
+
+The `People` component is an async server component that fetches and displays a list of contact persons. It provides a scrollable list of person cards with dialog-based editing and creation functionality.
+
+## Component Signature
+
+```tsx
+export default async function People(): Promise<JSX.Element>
+```
+
+<Note>
+  This is a React Server Component (RSC) that performs server-side data fetching.
+</Note>
+
+## Data Fetching
+
+The component fetches people data from the backend API:
+
+```tsx
+const data = await fetch(`${process.env.BACKEND_URL}/people/all`, {
+  headers: {
+    Authorization: `Basic ${Buffer.from(
+      `${process.env.USERNAME}:${process.env.PASSWORD}`
+    ).toString("base64")}`,
+  },
+});
+```
+
+<Note>
+  Uses Basic Authentication with environment variables. Returns 404 via `notFound()` if the fetch fails.
+</Note>
+
+## TypeScript Interface
+
+### People
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the person
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Person's full name
+</ParamField>
+
+<ParamField path="phone" type="string" required>
+  Person's phone number (format: 8801XXXXXXXXX)
+</ParamField>
+
+```tsx
+interface People {
+  id: string;
+  name: string;
+  phone: string;
+}
+```
+
+## Sub-Components
+
+### Person (Internal)
+
+A client-interactive function component that renders individual person cards.
+
+```tsx
+function Person({ person }: { person: People })
+```
+
+#### Props
+
+<ParamField path="person" type="People" required>
+  The person object to display
+</ParamField>
+
+#### Features
+
+- Displays person's name as card header
+- Shows phone number in card content
+- Wrapped in Dialog for editing on click
+- Opens `PersonUpdate` form in dialog
+- Hover effect with background change
+
+## UI Structure
+
+```tsx
+<div className="cursor-pointer mt-6 md:mt-0">
+  <h2>People :</h2>
+  <ScrollArea>
+    {people.map((person) => (
+      <Person key={person.id} person={person} />
+    ))}
+  </ScrollArea>
+  <Dialog>
+    <DialogTrigger asChild>
+      <Button>Add Person</Button>
+    </DialogTrigger>
+    <DialogContent>
+      <PersonCreate />
+    </DialogContent>
+  </Dialog>
+</div>
+```
+
+## Usage Example
+
+### In a Next.js Page
+
+```tsx app/page.tsx
+import People from "@/components/People";
+
+export default function HomePage() {
+  return (
+    <div className="grid md:grid-cols-3 gap-4">
+      <People />
+    </div>
+  );
+}
+```
+
+### With Messages Component
+
+```tsx app/page.tsx
+import Messages from "@/components/Messages";
+import People from "@/components/People";
+
+export default function HomePage() {
+  return (
+    <div className="grid md:grid-cols-3 gap-4">
+      <Messages />
+      <People />
+    </div>
+  );
+}
+```
+
+<Note>
+  Ensure the following environment variables are set:
+  - `BACKEND_URL`: The backend API base URL
+  - `USERNAME`: Basic auth username
+  - `PASSWORD`: Basic auth password
+</Note>
+
+## Integration with Forms
+
+The People component integrates with two form components:
+
+### PersonCreate
+
+```tsx
+<PersonCreate />
+```
+
+Client component for creating new contacts. Includes:
+- Name input field
+- Phone input field (validated as 8801XXXXXXXXX)
+- Submit button with pending state
+- Toast notifications for success/error
+
+### PersonUpdate
+
+```tsx
+<PersonUpdate person={person} />
+```
+
+Client component for editing existing contacts.
+
+## Styling & Layout
+
+- **Responsive Margin**: `mt-6` on mobile, `mt-0` on medium+ screens
+- **Scrollable**: Max height of `calc(100vh-180px)`
+- **Card Style**: Dashed border with drop shadow
+- **Hover Effect**: Background changes on hover (`hover:bg-ring-offset`)
+- **Full Width Button**: "Add Person" button spans full container width
+
+## Icons
+
+Uses Lucide React icons:
+
+```tsx
+import { UserPlus } from "lucide-react";
+
+<Button>
+  <UserPlus />
+  <span>Add Person</span>
+</Button>
+```
+
+## Error Handling
+
+```tsx
+if (!data.ok) {
+  notFound();
+}
+```
+
+If the API endpoint fails, triggers Next.js's 404 page.
+
+## Component Hierarchy
+
+```
+People (Server Component)
+├── ScrollArea
+│   └── Person (Function Component) × N
+│       └── Dialog
+│           ├── Card (with person details)
+│           └── PersonUpdate Form
+└── Dialog
+    └── PersonCreate Form
+```
+
+## API Integration
+
+The People component expects the backend API to return an array of person objects:
+
+```json
+[
+  {
+    "id": "uuid-string",
+    "name": "John Doe",
+    "phone": "8801712345678"
+  }
+]
+```
+
+## Related Components
+
+- [CreatePersonForm](/components/forms#createpersonform) - Form for adding new contacts
+- [UpdatePerson](/components/forms#updatepersonform) - Form for editing contacts
+- [Messages](/api/components/messages) - Component for managing messages
+
+## Source Location
+
+```
+~/workspace/source/src/components/People.tsx
+```

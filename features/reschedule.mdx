@@ -1,0 +1,315 @@
+---
+title: "Reschedule Messages"
+description: "One-click bulk rescheduling of all pending messages"
+icon: "calendar-arrow-up"
+---
+
+## Overview
+
+The Reschedule feature provides a one-click solution to reschedule all pending messages in the system. This is useful when you need to reset delivery schedules or adjust timing for all messages at once.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Bulk Operation" icon="layer-group">
+    Reschedule all messages with a single click
+  </Card>
+  <Card title="Real-time Feedback" icon="bell">
+    Toast notifications for success or failure
+  </Card>
+  <Card title="Simple UI" icon="mouse-pointer">
+    Minimal interface with a single button
+  </Card>
+  <Card title="Loading States" icon="spinner">
+    Button disables during processing
+  </Card>
+</CardGroup>
+
+## UI Component
+
+The Rescheduler component is a simple form with a submit button:
+
+```tsx
+"use client";
+import { Button } from "@/components/ui/button";
+import reschedule from "@/lib/actions/reschedule/reschedule";
+import { Calendar } from "lucide-react";
+import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
+
+export default function Rescheduler() {
+  const [rescheduleState, rescheduleAction, rescheduleIsPending] = 
+    useActionState(reschedule, { success: false });
+    
+  useEffect(() => {
+    if (rescheduleState.success) {
+      toast.success("Messages rescheduled successfully", {
+        richColors: true
+      });
+    } else if (rescheduleState.error) {
+      toast.error("Messages rescheduling failed", {
+        duration: 3500,
+        richColors: true,
+      });
+    }
+  }, [rescheduleState]);
+  
+  return (
+    <form action={rescheduleAction}>
+      <Button 
+        disabled={rescheduleIsPending} 
+        variant="default" 
+        type="submit" 
+        className="font-bold p-1 px-2"
+      >
+        <Calendar /> Reschede
+      </Button>
+    </form>
+  )
+}
+```
+
+<Note>
+  The button displays a Calendar icon and is disabled while the reschedule operation is in progress.
+</Note>
+
+## How It Works
+
+<Steps>
+  <Step title="User Clicks the Reschedule Button">
+    The button is located in the header or main navigation area of the application. When clicked, it triggers the form submission.
+    
+    ```tsx
+    <Button disabled={rescheduleIsPending} type="submit">
+      <Calendar /> Reschede
+    </Button>
+    ```
+  </Step>
+  
+  <Step title="Server Action is Invoked">
+    The `rescheduleAction` calls the server-side `reschedule` function, which communicates with the backend API.
+  </Step>
+  
+  <Step title="Backend Processing">
+    The backend endpoint `/messages/reschedule` processes all pending messages and updates their schedules.
+  </Step>
+  
+  <Step title="User Feedback">
+    Based on the response, a toast notification appears:
+    
+    - **Success**: "Messages rescheduled successfully"
+    - **Error**: "Messages rescheduling failed"
+  </Step>
+</Steps>
+
+## Server Action
+
+The reschedule functionality is implemented as a Next.js Server Action:
+
+```typescript
+"use server"
+
+import { revalidatePath } from "next/cache";
+
+interface RescheduleState {
+  success: boolean;
+  error?: string;
+}
+
+export default async function reschedule(): Promise<RescheduleState> {
+  try {
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/messages/reschedule`, 
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+          ).toString("base64")}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      return { success: false };
+    }
+    
+    revalidatePath("/");
+    return { success: true };
+  } catch (e) {
+    return { 
+      success: false, 
+      error: e instanceof Error ? e.message : "Unknown error" 
+    };
+  }
+}
+```
+
+## Key Implementation Details
+
+### State Management
+
+The component uses React's `useActionState` hook for managing form state:
+
+```tsx
+const [rescheduleState, rescheduleAction, rescheduleIsPending] = 
+  useActionState(reschedule, { success: false });
+```
+
+- **rescheduleState**: Contains the response from the server action
+- **rescheduleAction**: The function to call when submitting the form
+- **rescheduleIsPending**: Boolean indicating if the action is in progress
+
+### Loading State
+
+The button is disabled during processing to prevent duplicate submissions:
+
+```tsx
+<Button disabled={rescheduleIsPending} type="submit">
+  <Calendar /> Reschede
+</Button>
+```
+
+### Toast Notifications
+
+Notifications are displayed using the Sonner toast library:
+
+```tsx
+useEffect(() => {
+  if (rescheduleState.success) {
+    toast.success("Messages rescheduled successfully", {
+      richColors: true
+    });
+  } else if (rescheduleState.error) {
+    toast.error("Messages rescheduling failed", {
+      duration: 3500,
+      richColors: true,
+    });
+  }
+}, [rescheduleState]);
+```
+
+<Note>
+  The `richColors` option provides visually enhanced success/error states.
+</Note>
+
+## Backend API Endpoint
+
+The frontend communicates with the following backend endpoint:
+
+| Endpoint | Method | Purpose |
+|----------|--------|----------|
+| `/messages/reschedule` | GET | Reschedule all pending messages |
+
+### Authentication
+
+All requests require Basic Authentication:
+
+```typescript
+headers: {
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.USERNAME}:${process.env.PASSWORD}`
+  ).toString("base64")}`,
+}
+```
+
+<Warning>
+  Ensure `BACKEND_URL`, `USERNAME`, and `PASSWORD` environment variables are properly configured.
+</Warning>
+
+## Error Handling
+
+The reschedule action handles errors gracefully:
+
+1. **Network Errors**: Caught in the try-catch block
+2. **HTTP Errors**: Checked via `response.ok`
+3. **Unknown Errors**: Returned with a generic error message
+
+```typescript
+try {
+  const response = await fetch(/* ... */);
+  
+  if (!response.ok) {
+    return { success: false };
+  }
+  
+  return { success: true };
+} catch (e) {
+  return { 
+    success: false, 
+    error: e instanceof Error ? e.message : "Unknown error" 
+  };
+}
+```
+
+## Cache Revalidation
+
+After successful rescheduling, the home page cache is revalidated:
+
+```typescript
+revalidatePath("/");
+```
+
+This ensures that the updated message schedules are immediately visible without requiring a manual page refresh.
+
+## Usage Example
+
+<Steps>
+  <Step title="Navigate to the Application">
+    Open the main dashboard where messages are displayed.
+  </Step>
+  
+  <Step title="Click the Reschedule Button">
+    Find and click the button with the Calendar icon labeled "Reschede".
+  </Step>
+  
+  <Step title="Wait for Confirmation">
+    The button will be disabled briefly while processing. A toast notification will appear confirming success or reporting an error.
+  </Step>
+  
+  <Step title="Verify Updated Schedules">
+    The message list will automatically refresh to show the updated schedules.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Sparingly" icon="exclamation-triangle">
+    Rescheduling affects all messages. Use this feature carefully.
+  </Card>
+  <Card title="Check Before Rescheduling" icon="eye">
+    Review the message list before performing a bulk reschedule.
+  </Card>
+  <Card title="Monitor Notifications" icon="bell">
+    Always wait for the toast notification to confirm operation success.
+  </Card>
+  <Card title="Verify Results" icon="check-circle">
+    Check individual messages after rescheduling to ensure expected behavior.
+  </Card>
+</CardGroup>
+
+## Related Features
+
+- [Message Scheduling](/features/message-scheduling) - Create and manage individual messages
+- [Person Management](/features/person-management) - Manage message recipients
+
+## Troubleshooting
+
+### Reschedule Fails
+
+If the reschedule operation fails:
+
+1. **Check Backend Connectivity**: Ensure `BACKEND_URL` is correct and the backend is running
+2. **Verify Credentials**: Confirm `USERNAME` and `PASSWORD` environment variables are set
+3. **Check Browser Console**: Look for network errors or detailed error messages
+4. **Review Backend Logs**: Check the backend API logs for error details
+
+### No Feedback After Clicking
+
+If nothing happens after clicking the button:
+
+1. **Check Network Tab**: Open browser DevTools and inspect the network request
+2. **Verify Button State**: Ensure the button isn't already disabled
+3. **Check Console Errors**: Look for JavaScript errors in the console
+4. **Refresh the Page**: Try refreshing and clicking again

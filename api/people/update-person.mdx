@@ -1,0 +1,170 @@
+---
+title: "updatePerson"
+description: "Server action to update an existing person record"
+---
+
+## Function Signature
+
+```typescript
+async function updatePerson(
+  prevState: PersonPrevState,
+  formData: FormData
+): Promise<PersonPrevState>
+```
+
+**Source:** `src/lib/actions/people/updatePerson.ts:19`
+
+## Parameters
+
+<ParamField path="prevState" type="PersonPrevState" required>
+  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  
+  <Expandable title="PersonPrevState">
+    <ResponseField name="success" type="boolean">
+      Indicates if the previous operation was successful
+    </ResponseField>
+    <ResponseField name="error" type="string">
+      Error message from the previous operation
+    </ResponseField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="formData" type="FormData" required>
+  Form data containing the person details to update
+  
+  <Expandable title="FormData Fields">
+    <ParamField path="id" type="string" required>
+      The unique identifier of the person to update
+      
+      **Validation:**
+      - Minimum length: 1 character
+      - Error: "ID is required"
+    </ParamField>
+    
+    <ParamField path="name" type="string" required>
+      The updated person's name
+      
+      **Validation:**
+      - Minimum length: 1 character
+      - Error: "Name cannot be empty"
+    </ParamField>
+    
+    <ParamField path="phone" type="string" required>
+      The updated phone number
+      
+      **Validation:**
+      - Pattern: `/^8801\d{9}$/`
+      - Must start with "8801" followed by exactly 9 digits
+      - Error: "Invalid phone number format. Must be 8801XXXXXXXXX"
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return Value
+
+<ResponseField name="PersonPrevState" type="object">
+  <Expandable title="Success Response">
+    <ResponseField name="success" type="boolean">
+      Set to `true` when the person is updated successfully
+    </ResponseField>
+  </Expandable>
+  
+  <Expandable title="Error Response">
+    <ResponseField name="error" type="string">
+      Error message describing what went wrong
+      
+      **Possible errors:**
+      - Validation errors: Comma-separated list of field validation failures
+      - Backend errors: "Backend Error: {status} {statusText}"
+      - Generic errors: "Something went wrong"
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Validation Schema
+
+The function uses Zod for validation:
+
+```typescript
+const personSchema = z.object({
+  id: z.string().min(1, "ID is required"),
+  name: z.string().min(1, "Name cannot be empty"),
+  phone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+});
+```
+
+## Behavior
+
+1. **Validation**: Form data is validated against the Zod schema
+2. **API Call**: Makes a POST request to `{BACKEND_URL}/people/update-one/{id}`
+3. **Authentication**: Uses Basic Auth with environment credentials
+4. **Revalidation**: Calls `revalidatePath("/")` on success to refresh the home page
+5. **Error Handling**: Returns structured error messages for validation, backend, or network errors
+
+## Usage Example
+
+```typescript
+import { useFormState } from "react-dom";
+import updatePerson from "@/lib/actions/people/updatePerson";
+
+function EditPersonForm({ personId }: { personId: string }) {
+  const [state, formAction] = useFormState(updatePerson, {});
+  
+  return (
+    <form action={formAction}>
+      <input type="hidden" name="id" value={personId} />
+      <input name="name" placeholder="Full Name" required />
+      <input name="phone" placeholder="8801XXXXXXXXX" required />
+      <button type="submit">Update Person</button>
+      {state.error && <p className="error">{state.error}</p>}
+      {state.success && <p className="success">Person updated!</p>}
+    </form>
+  );
+}
+```
+
+## Backend Endpoint
+
+**POST** `/people/update-one/:id`
+
+**Headers:**
+- `Authorization`: Basic authentication
+- `Content-Type`: application/json
+
+**Body:**
+```json
+{
+  "id": "person-123",
+  "name": "Jane Smith",
+  "phone": "8801987654321"
+}
+```
+
+## Phone Number Format
+
+The phone number must follow Bangladesh's mobile number format:
+- **Prefix**: `8801` (country code 880 + mobile prefix 1)
+- **Digits**: Exactly 9 additional digits
+- **Total Length**: 13 characters
+- **Example**: `8801712345678`
+
+### Valid Examples
+- `8801712345678` (Grameenphone)
+- `8801812345678` (Robi)
+- `8801912345678` (Banglalink)
+- `8801612345678` (Airtel)
+- `8801512345678` (Teletalk)
+
+### Invalid Examples
+- `01712345678` (missing country code)
+- `+8801712345678` (includes + symbol)
+- `88017123456` (too few digits)
+- `880171234567890` (too many digits)
+
+## Differences from createPerson
+
+- **ID Required**: Must include the person ID to identify which record to update
+- **Endpoint**: Uses `/update-one/:id` instead of `/create-one`
+- **Validation**: Same validation rules as create, plus ID validation

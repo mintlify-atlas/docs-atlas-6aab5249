@@ -1,0 +1,185 @@
+---
+title: Environment Variables
+description: Configure your Next.js frontend to connect to the Bun Hono backend
+icon: key
+---
+
+The Bun Hono Frontend Next.js application requires environment variables to connect to the backend API and authenticate requests.
+
+## Required Environment Variables
+
+The application requires three essential environment variables to function properly:
+
+<ParamField path="BACKEND_URL" type="string" required>
+  The base URL of your Bun Hono backend server.
+  
+  **Default:** `http://localhost:3000`
+  
+  If your backend is running on a different port or host, update this value accordingly.
+</ParamField>
+
+<ParamField path="USERNAME" type="string" required>
+  The username for Basic Authentication with the backend API.
+  
+  **Important:** This must match the username configured in your Bun Hono backend.
+</ParamField>
+
+<ParamField path="PASSWORD" type="string" required>
+  The password for Basic Authentication with the backend API.
+  
+  **Important:** This must match the password configured in your Bun Hono backend.
+</ParamField>
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Create the .env file">
+    Create a `.env` file in the root directory of your project:
+    
+    ```bash
+    touch .env
+    ```
+  </Step>
+  
+  <Step title="Add environment variables">
+    Add the following variables to your `.env` file:
+    
+    ```bash .env
+    BACKEND_URL=http://localhost:3000
+    USERNAME=""
+    PASSWORD=""
+    ```
+    
+    <Note>
+      The `USERNAME` and `PASSWORD` values should match the credentials you configured in your Bun Hono backend.
+    </Note>
+  </Step>
+  
+  <Step title="Configure credentials">
+    Replace the empty strings with your actual credentials:
+    
+    ```bash .env
+    BACKEND_URL=http://localhost:3000
+    USERNAME="your-username"
+    PASSWORD="your-secure-password"
+    ```
+  </Step>
+  
+  <Step title="Restart the development server">
+    If your development server is already running, restart it to load the new environment variables:
+    
+    ```bash
+    pnpm run dev
+    ```
+  </Step>
+</Steps>
+
+## Port Configuration
+
+<Note>
+  If your backend is running on port 3000, the Next.js frontend will automatically run on port 3001 to avoid conflicts.
+</Note>
+
+If your backend runs on a different port, update the `BACKEND_URL` accordingly:
+
+```bash .env
+# Backend running on port 8080
+BACKEND_URL=http://localhost:8080
+```
+
+## How Environment Variables Are Used
+
+These environment variables are accessed in server actions throughout the application. Here's how they're used:
+
+### Backend URL
+
+The `BACKEND_URL` is used to construct API endpoints:
+
+```typescript src/lib/actions/message/createMessage.ts
+const response = await fetch(
+  `${process.env.BACKEND_URL}/messages/create-one`,
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.USERNAME}:${process.env.PASSWORD}`
+      ).toString("base64")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(parsedData.data),
+  }
+);
+```
+
+### Authentication Credentials
+
+The `USERNAME` and `PASSWORD` are encoded as Base64 for Basic Authentication:
+
+```typescript
+Authorization: `Basic ${Buffer.from(
+  `${process.env.USERNAME}:${process.env.PASSWORD}`
+).toString("base64")}`
+```
+
+This authentication header is included in every request to the backend API.
+
+## Security Best Practices
+
+<Warning>
+  Never commit your `.env` file to version control. The `.env` file should be included in your `.gitignore`.
+</Warning>
+
+<Steps>
+  <Step title="Add .env to .gitignore">
+    Ensure your `.gitignore` includes:
+    
+    ```gitignore
+    .env
+    .env.local
+    .env.production
+    ```
+  </Step>
+  
+  <Step title="Use strong passwords">
+    Use strong, unique passwords for the `PASSWORD` variable, especially in production environments.
+  </Step>
+  
+  <Step title="Environment-specific files">
+    Consider using different environment files for different stages:
+    
+    - `.env.local` - Local development (overrides `.env`)
+    - `.env.production` - Production settings
+    - `.env.example` - Template file to commit to version control
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Connection Refused
+
+If you see connection errors, verify:
+
+1. The backend server is running
+2. The `BACKEND_URL` matches the backend's actual URL and port
+3. There are no firewall rules blocking the connection
+
+### Authentication Errors
+
+If you receive 401 Unauthorized errors:
+
+1. Verify `USERNAME` and `PASSWORD` match the backend configuration
+2. Check for extra spaces or quotes in your `.env` file
+3. Restart the development server after changing credentials
+
+### Environment Variables Not Loading
+
+<Note>
+  Next.js only loads environment variables on server startup. You must restart the development server after modifying the `.env` file.
+</Note>
+
+If variables aren't loading:
+
+1. Restart the development server
+2. Verify the `.env` file is in the project root
+3. Check that variable names are spelled correctly
+4. Ensure there are no syntax errors in the `.env` file

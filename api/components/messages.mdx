@@ -1,0 +1,239 @@
+---
+title: "Messages Component"
+description: "Server component for displaying and managing scheduled messages"
+icon: "mail"
+---
+
+## Overview
+
+The `Messages` component is an async server component that fetches and displays scheduled messages. It includes a scrollable list of message cards, each with dialog-based editing, and a dialog for creating new messages.
+
+## Component Signature
+
+```tsx
+export default async function Messages(): Promise<JSX.Element>
+```
+
+<Note>
+  This is a React Server Component (RSC) that performs data fetching at render time.
+</Note>
+
+## Data Fetching
+
+The component fetches two types of data from the backend:
+
+### Messages Endpoint
+
+```tsx
+const data = await fetch(`${process.env.BACKEND_URL}/messages/all`, {
+  headers: {
+    Authorization: `Basic ${Buffer.from(
+      `${process.env.USERNAME}:${process.env.PASSWORD}`
+    ).toString("base64")}`,
+  },
+});
+```
+
+### People Endpoint
+
+```tsx
+const data2 = await fetch(`${process.env.BACKEND_URL}/people/all`, {
+  headers: {
+    Authorization: `Basic ${Buffer.from(
+      `${process.env.USERNAME}:${process.env.PASSWORD}`
+    ).toString("base64")}`,
+  },
+});
+```
+
+<Note>
+  Both endpoints use Basic Authentication with credentials from environment variables. If either fetch fails, the component calls `notFound()` from Next.js navigation.
+</Note>
+
+## TypeScript Interfaces
+
+### Message
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the message
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  The message content/text body
+</ParamField>
+
+<ParamField path="sendToPhone" type="string" required>
+  Phone number to send the message to
+</ParamField>
+
+<ParamField path="sendAfter" type="number" required>
+  Number of days to wait before sending the message
+</ParamField>
+
+<ParamField path="sendTo" type="object" required>
+  Recipient information object
+  
+  <ParamField path="sendTo.name" type="string" required>
+    Name of the message recipient
+  </ParamField>
+</ParamField>
+
+<ParamField path="createdAt" type="Date" required>
+  Timestamp when the message was created
+</ParamField>
+
+```tsx
+export interface Message {
+  id: string;
+  content: string;
+  sendToPhone: string;
+  sendAfter: number;
+  sendTo: {
+    name: string;
+  };
+  createdAt: Date;
+}
+```
+
+### People
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the person
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Person's name
+</ParamField>
+
+<ParamField path="phone" type="string" required>
+  Person's phone number
+</ParamField>
+
+```tsx
+export interface People {
+  id: string;
+  name: string;
+  phone: string;
+}
+```
+
+## Sub-Components
+
+### Message (Internal)
+
+A client-interactive function component that renders individual message cards with dialog-based editing.
+
+```tsx
+function Message({ message, people }: { message: Message; people: People[] })
+```
+
+#### Props
+
+<ParamField path="message" type="Message" required>
+  The message object to display
+</ParamField>
+
+<ParamField path="people" type="People[]" required>
+  Array of people for the update form dropdown
+</ParamField>
+
+#### Features
+
+- Displays truncated message content (first 100 characters)
+- Shows recipient name and phone number
+- Displays "send after" days
+- Wrapped in a Dialog trigger for editing
+- Opens `MessageUpdateForm` on click
+
+## UI Structure
+
+```tsx
+<div className="md:col-span-2">
+  <h2>Messages :</h2>
+  <ScrollArea>
+    {messages.map((message) => (
+      <Message key={message.id} message={message} people={people} />
+    ))}
+  </ScrollArea>
+  <Dialog>
+    <DialogTrigger asChild>
+      <Button>Add Message</Button>
+    </DialogTrigger>
+    <DialogContent>
+      <CreateMessageForm people={people} />
+    </DialogContent>
+  </Dialog>
+</div>
+```
+
+## Usage Example
+
+### In a Next.js Page
+
+```tsx app/page.tsx
+import Messages from "@/components/Messages";
+
+export default function HomePage() {
+  return (
+    <div className="grid md:grid-cols-3 gap-4">
+      <Messages />
+    </div>
+  );
+}
+```
+
+<Note>
+  Ensure the following environment variables are set:
+  - `BACKEND_URL`: The backend API base URL
+  - `USERNAME`: Basic auth username
+  - `PASSWORD`: Basic auth password
+</Note>
+
+## Integration with Forms
+
+The Messages component integrates with two form components:
+
+### CreateMessageForm
+
+```tsx
+<CreateMessageForm people={people} />
+```
+
+Used for creating new messages via a dialog interface.
+
+### MessageUpdateForm
+
+```tsx
+<MessageUpdateForm message={message} people={people} />
+```
+
+Used for editing existing messages via a dialog interface.
+
+## Styling & Layout
+
+- **Grid Layout**: Spans 2 columns on medium+ screens (`md:col-span-2`)
+- **Scrollable**: Max height of `calc(100vh-180px)` with overflow handling
+- **Card Style**: Dashed border with drop shadow
+- **Responsive**: Full width on mobile, grid column span on desktop
+
+## Error Handling
+
+```tsx
+if (!data.ok) {
+  notFound();
+}
+```
+
+If either API endpoint fails, the component triggers Next.js's 404 page using `notFound()`.
+
+## Related Components
+
+- [CreateMessageForm](/components/forms#createmessageform) - Form for creating new messages
+- [MessageUpdateForm](/components/forms#updatemessageform) - Form for editing messages
+- [People](/api/components/people) - Component for managing contacts
+
+## Source Location
+
+```
+~/workspace/source/src/components/Messages.tsx
+```

@@ -1,0 +1,286 @@
+---
+title: "Rescheduler Component"
+description: "Client component for triggering message rescheduling"
+icon: "calendar"
+---
+
+## Overview
+
+The `Rescheduler` component is a client-side button that triggers a server action to reschedule all messages. It provides user feedback via toast notifications and handles loading states.
+
+## Component Signature
+
+```tsx
+export default function Rescheduler(): JSX.Element
+```
+
+<Note>
+  This is a Client Component ("use client") that uses React hooks and Next.js server actions.
+</Note>
+
+## Server Action Integration
+
+The component uses the `reschedule` server action with the `useActionState` hook:
+
+```tsx
+import reschedule from "@/lib/actions/reschedule/reschedule";
+
+const [rescheduleState, rescheduleAction, rescheduleIsPending] = useActionState(
+  reschedule,
+  { success: false }
+);
+```
+
+### useActionState Return Values
+
+<ParamField path="rescheduleState" type="RescheduleState">
+  State object containing success/error status
+  
+  <ParamField path="success" type="boolean" required>
+    Whether the rescheduling succeeded
+  </ParamField>
+  
+  <ParamField path="error" type="string" optional>
+    Error message if rescheduling failed
+  </ParamField>
+</ParamField>
+
+<ParamField path="rescheduleAction" type="() => void">
+  Function to trigger the reschedule server action
+</ParamField>
+
+<ParamField path="rescheduleIsPending" type="boolean">
+  Loading state indicator
+</ParamField>
+
+## Server Action: reschedule
+
+The underlying server action that performs the API call:
+
+```tsx
+"use server"
+
+interface RescheduleState {
+  success: boolean;
+  error?: string;
+}
+
+export default async function reschedule(): Promise<RescheduleState> {
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL}/messages/reschedule`, {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.USERNAME}:${process.env.PASSWORD}`
+        ).toString("base64")}`,
+      },
+    });
+    
+    if (!response.ok) {
+      return { success: false };
+    }
+    
+    revalidatePath("/");
+    return { success: true };
+  } catch (e) {
+    return { 
+      success: false, 
+      error: e instanceof Error ? e.message : "Unknown error" 
+    };
+  }
+}
+```
+
+<Note>
+  The action uses `revalidatePath("/")` to refresh the page data after successful rescheduling.
+</Note>
+
+## Toast Notifications
+
+The component uses Sonner toast notifications to provide feedback:
+
+```tsx
+import { toast } from "sonner";
+
+useEffect(() => {
+  if (rescheduleState.success) {
+    toast.success("Messages rescheduled successfully", {
+      richColors: true
+    });
+  } else if (rescheduleState.error) {
+    toast.error("Messages rescheduling failed", {
+      duration: 3500,
+      richColors: true,
+    });
+  }
+}, [rescheduleState]);
+```
+
+### Toast Types
+
+<ParamField path="success" type="toast">
+  Displayed when messages are successfully rescheduled
+  - Message: "Messages rescheduled successfully"
+  - Uses rich colors
+</ParamField>
+
+<ParamField path="error" type="toast">
+  Displayed when rescheduling fails
+  - Message: "Messages rescheduling failed"
+  - Duration: 3500ms
+  - Uses rich colors
+</ParamField>
+
+## UI Structure
+
+```tsx
+<form action={rescheduleAction}>
+  <Button 
+    disabled={rescheduleIsPending} 
+    variant="default" 
+    type="submit" 
+    className="font-bold p-1 px-2"
+  >
+    <Calendar /> Reschede
+  </Button>
+</form>
+```
+
+<Note>
+  Note: There's a typo in the button text ("Reschede" instead of "Reschedule")
+</Note>
+
+## Props
+
+This component accepts no props.
+
+```tsx
+export default function Rescheduler()
+```
+
+## Usage Example
+
+### In a Layout or Header
+
+```tsx app/layout.tsx
+import Rescheduler from "@/components/Rescheduler";
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <header>
+          <nav>
+            <Rescheduler />
+          </nav>
+        </header>
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+### With Other Components
+
+```tsx app/page.tsx
+import Rescheduler from "@/components/Rescheduler";
+import Messages from "@/components/Messages";
+
+export default function HomePage() {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Rescheduler />
+      </div>
+      <Messages />
+    </div>
+  );
+}
+```
+
+## Button States
+
+<ParamField path="disabled" type="boolean">
+  Button is disabled when `rescheduleIsPending` is true
+</ParamField>
+
+<ParamField path="variant" type="string" default="default">
+  Uses the default button variant
+</ParamField>
+
+<ParamField path="type" type="string" default="submit">
+  Form submit button
+</ParamField>
+
+## Icons
+
+Uses Lucide React Calendar icon:
+
+```tsx
+import { Calendar } from "lucide-react";
+```
+
+## Environment Variables
+
+Required in the server action:
+
+<ParamField path="BACKEND_URL" type="string" required>
+  Backend API base URL for the reschedule endpoint
+</ParamField>
+
+<ParamField path="USERNAME" type="string" required>
+  Basic authentication username
+</ParamField>
+
+<ParamField path="PASSWORD" type="string" required>
+  Basic authentication password
+</ParamField>
+
+## API Endpoint
+
+The component calls the following backend endpoint:
+
+```
+GET /messages/reschedule
+```
+
+**Authentication**: Basic Auth
+
+**Response**:
+- Success: HTTP 200
+- Failure: Non-200 status code
+
+## Error Handling
+
+The component handles errors at multiple levels:
+
+1. **Network Errors**: Caught in try-catch block of server action
+2. **API Errors**: Handled by checking `response.ok`
+3. **User Feedback**: Displayed via toast notifications
+
+```tsx
+if (rescheduleState.error) {
+  toast.error("Messages rescheduling failed", {
+    duration: 3500,
+    richColors: true,
+  });
+}
+```
+
+## Related Components
+
+- [Messages](/api/components/messages) - Component that displays messages to be rescheduled
+- [Server Actions](/api/reschedule) - The reschedule server action
+
+## Source Locations
+
+**Component**:
+```
+~/workspace/source/src/components/Rescheduler.tsx
+```
+
+**Server Action**:
+```
+~/workspace/source/src/lib/actions/reschedule/reschedule.ts
+```

@@ -1,0 +1,606 @@
+---
+title: Form Components
+description: Building interactive forms with React Server Actions and useActionState
+---
+
+## Overview
+
+The application uses React Server Actions combined with the `useActionState` hook for form handling. This approach provides a modern, progressive enhancement pattern where forms work without JavaScript while providing rich interactivity when JavaScript is available.
+
+<Note>
+  All form components are Client Components (marked with `"use client"`) because they use React hooks for state management.
+</Note>
+
+## Form Architecture
+
+The application has four main form components:
+
+<CardGroup cols={2}>
+  <Card title="CreateMessageForm" icon="envelope">
+    Create new scheduled messages
+  </Card>
+  <Card title="CreatePersonForm" icon="user-plus">
+    Add new contacts to the system
+  </Card>
+  <Card title="UpdateMessageForm" icon="pen-to-square">
+    Edit existing messages
+  </Card>
+  <Card title="UpdatePerson" icon="user-pen">
+    Modify contact information
+  </Card>
+</CardGroup>
+
+## CreateMessageForm
+
+This form demonstrates the complete pattern for creating resources with validation, error handling, and user feedback.
+
+### Component Structure
+
+```tsx src/components/CreateMessageForm.tsx
+"use client";
+
+import { useActionState, useEffect } from "react";
+import { People } from "./Messages";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
+import createMessage from "@/lib/actions/message/createMessage";
+import { Alert, AlertTitle } from "./ui/alert";
+import { toast } from "sonner";
+
+export default function MessageUpdateForm({ people }: { people: People[] }) {
+  const [createState, createAction, createIsPending] = useActionState(
+    createMessage,
+    {}
+  );
+  
+  useEffect(() => {
+    if (createState.success) {
+      toast.success("Message created successfully", {
+        richColors: true,
+      });
+    }
+    if (createState.error) {
+      toast.error("Message creation failed", {
+        description: createState.error,
+        duration: 3500,
+        richColors: true,
+      });
+    }
+  }, [createState]);
+
+  return (
+    <div className="space-y-2">
+      <form action={createAction} className="space-y-3 flex flex-col">
+        <div className="space-y-2">
+          <Label htmlFor="content" className="font-bold">
+            Message
+          </Label>
+          <Textarea name="content" className="h-32" />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="sendToPhone" className="font-bold">
+            Send To
+          </Label>
+          <Select name="sendToPhone">
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Send To" />
+            </SelectTrigger>
+            <SelectContent>
+              {people.map((person) => (
+                <SelectItem key={person.id} value={person.phone}>
+                  {person.name} ({person.phone})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="sendAfter" className="font-bold">
+            Send After (in days)
+          </Label>
+          <Input type="number" step={0.0001} min={0} name="sendAfter" />
+        </div>
+        
+        <Button type="submit" disabled={createIsPending} className="mt-4">
+          Add
+        </Button>
+      </form>
+      
+      {createState.error && (
+        <Alert variant="destructive">
+          <AlertTitle>{createState.error}</AlertTitle>
+        </Alert>
+      )}
+      
+      {createState.success && (
+        <Alert className="text-green-600">
+          <AlertTitle>Message Created successfully</AlertTitle>
+        </Alert>
+      )}
+    </div>
+  );
+}
+```
+
+### Key Features
+
+<Steps>
+  <Step title="useActionState Hook">
+    The `useActionState` hook manages form state and submission:
+    
+    ```tsx
+    const [createState, createAction, createIsPending] = useActionState(
+      createMessage,  // Server Action function
+      {}              // Initial state
+    );
+    ```
+    
+    Returns:
+    - `createState` - Current state with success/error properties
+    - `createAction` - Form action handler
+    - `createIsPending` - Boolean indicating submission in progress
+  </Step>
+  
+  <Step title="Server Action">
+    The form submits to a Server Action that handles validation and API calls
+  </Step>
+  
+  <Step title="Toast Notifications">
+    Uses `useEffect` to show toast notifications when state changes
+  </Step>
+  
+  <Step title="Inline Alerts">
+    Displays inline alerts for persistent error/success messages
+  </Step>
+  
+  <Step title="Disabled State">
+    Submit button is disabled during form submission
+  </Step>
+</Steps>
+
+## CreatePersonForm
+
+A simpler form demonstrating the same pattern with fewer fields.
+
+```tsx src/components/CreatePersonForm.tsx
+"use client";
+
+import { useActionState, useEffect } from "react";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
+import createPerson from "@/lib/actions/people/createPerson";
+import { toast } from "sonner";
+
+export default function PersonCreate() {
+  const [createState, createAction, createIsPending] = useActionState(
+    createPerson,
+    {}
+  );
+  
+  useEffect(() => {
+    if (createState.success) {
+      toast.success("Person created successfully", {
+        richColors: true,
+      });
+    }
+    if (createState.error) {
+      toast.error("Person creation failed", {
+        description: createState.error,
+        duration: 3500,
+        richColors: true,
+      });
+    }
+  }, [createState]);
+
+  return (
+    <div className="space-y-2">
+      <form action={createAction} className="space-y-3 flex flex-col">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="font-bold">
+            Name
+          </Label>
+          <Input name="name" />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="phone" className="font-bold">
+            Phone
+          </Label>
+          <Input name="phone" />
+        </div>
+        
+        <Button type="submit" disabled={createIsPending} className="mt-4">
+          Add
+        </Button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Server Actions
+
+Server Actions are async functions that run on the server. They handle form validation, API calls, and database operations.
+
+### Example: createMessage Action
+
+```ts src/lib/actions/message/createMessage.ts
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+interface MessagePrevState {
+  success?: boolean;
+  error?: string;
+}
+
+// Define Zod schema for validation
+const messageSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number()
+    .min(1, "Send after is required and minimum after 1 day"),
+});
+
+export default async function createMessage(
+  prevState: MessagePrevState,
+  formData: FormData
+): Promise<MessagePrevState> {
+  try {
+    // Validate form data with Zod
+    const parsedData = messageSchema.safeParse({
+      content: formData.get("content"),
+      sendToPhone: formData.get("sendToPhone"),
+      sendAfter: Number(formData.get("sendAfter")),
+    });
+
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+
+    // Make API request to Hono backend
+    const response = await fetch(
+      `${process.env.BACKEND_URL}/messages/create-one`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${process.env.USERNAME}:${process.env.PASSWORD}`
+          ).toString("base64")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsedData.data),
+      }
+    );
+
+    if (!response.ok) {
+      return {
+        error: `Backend Error: ${response.status} ${response.statusText}`,
+      };
+    }
+    
+    // Revalidate the page to show updated data
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Something went wrong",
+    };
+  }
+}
+```
+
+### Server Action Pattern
+
+<Steps>
+  <Step title="Mark as Server">
+    Add `"use server"` directive at the top of the file
+  </Step>
+  
+  <Step title="Define State Interface">
+    Create TypeScript interface for the state shape
+    
+    ```ts
+    interface MessagePrevState {
+      success?: boolean;
+      error?: string;
+    }
+    ```
+  </Step>
+  
+  <Step title="Create Zod Schema">
+    Define validation schema using Zod
+    
+    ```ts
+    const messageSchema = z.object({
+      content: z.string().min(1, "Content cannot be empty"),
+      sendToPhone: z.string().regex(/^8801\d{9}$/),
+      sendAfter: z.number().min(1),
+    });
+    ```
+  </Step>
+  
+  <Step title="Validate Data">
+    Use `safeParse` to validate form data
+    
+    ```ts
+    const parsedData = messageSchema.safeParse({
+      content: formData.get("content"),
+      sendToPhone: formData.get("sendToPhone"),
+      sendAfter: Number(formData.get("sendAfter")),
+    });
+    ```
+  </Step>
+  
+  <Step title="Handle Errors">
+    Return validation errors to the client
+    
+    ```ts
+    if (!parsedData.success) {
+      return {
+        error: parsedData.error.errors.map((err) => err.message).join(", "),
+      };
+    }
+    ```
+  </Step>
+  
+  <Step title="Make API Call">
+    Send validated data to the Hono backend
+  </Step>
+  
+  <Step title="Revalidate Path">
+    Call `revalidatePath("/")` to refresh the page data
+  </Step>
+</Steps>
+
+## Form Validation with Zod
+
+The application uses [Zod](https://zod.dev/) for schema validation:
+
+```ts
+import { z } from "zod";
+
+const messageSchema = z.object({
+  content: z.string().min(1, "Content cannot be empty"),
+  sendToPhone: z
+    .string()
+    .regex(/^8801\d{9}$/, "Invalid phone number format. Must be 8801XXXXXXXXX"),
+  sendAfter: z
+    .number()
+    .min(1, "Send after is required and minimum after 1 day"),
+});
+```
+
+**Validation Features:**
+- Type safety with TypeScript
+- Custom error messages
+- Regex pattern matching
+- Number constraints (min, max)
+- String length validation
+
+## Toast Notifications
+
+The application uses [Sonner](https://sonner.emilkowal.ski/) for toast notifications:
+
+```tsx
+import { toast } from "sonner";
+
+useEffect(() => {
+  if (createState.success) {
+    toast.success("Message created successfully", {
+      richColors: true,
+    });
+  }
+  if (createState.error) {
+    toast.error("Message creation failed", {
+      description: createState.error,
+      duration: 3500,
+      richColors: true,
+    });
+  }
+}, [createState]);
+```
+
+### Toast Setup
+
+The Toaster component is added in the root layout:
+
+```tsx src/app/layout.tsx
+import { Toaster } from "@/components/ui/sonner"
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <Toaster />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+<Note>
+  Toast notifications provide temporary feedback, while Alert components show persistent messages within the form.
+</Note>
+
+## Form Field Patterns
+
+### Text Input
+
+```tsx
+<div className="space-y-2">
+  <Label htmlFor="name" className="font-bold">
+    Name
+  </Label>
+  <Input name="name" />
+</div>
+```
+
+### Textarea
+
+```tsx
+<div className="space-y-2">
+  <Label htmlFor="content" className="font-bold">
+    Message
+  </Label>
+  <Textarea name="content" className="h-32" />
+</div>
+```
+
+### Number Input
+
+```tsx
+<div className="space-y-2">
+  <Label htmlFor="sendAfter" className="font-bold">
+    Send After (in days)
+  </Label>
+  <Input type="number" step={0.0001} min={0} name="sendAfter" />
+</div>
+```
+
+### Select Dropdown
+
+```tsx
+<div className="space-y-2">
+  <Label htmlFor="sendToPhone" className="font-bold">
+    Send To
+  </Label>
+  <Select name="sendToPhone">
+    <SelectTrigger className="w-full">
+      <SelectValue placeholder="Send To" />
+    </SelectTrigger>
+    <SelectContent>
+      {people.map((person) => (
+        <SelectItem key={person.id} value={person.phone}>
+          {person.name} ({person.phone})
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+```
+
+## Error Handling
+
+The application handles errors at multiple levels:
+
+### 1. Validation Errors
+
+```ts
+if (!parsedData.success) {
+  return {
+    error: parsedData.error.errors.map((err) => err.message).join(", "),
+  };
+}
+```
+
+### 2. API Errors
+
+```ts
+if (!response.ok) {
+  return {
+    error: `Backend Error: ${response.status} ${response.statusText}`,
+  };
+}
+```
+
+### 3. Runtime Errors
+
+```ts
+try {
+  // ... form handling
+} catch (error) {
+  return {
+    error: error instanceof Error ? error.message : "Something went wrong",
+  };
+}
+```
+
+### 4. Client Display
+
+```tsx
+{createState.error && (
+  <Alert variant="destructive">
+    <AlertTitle>{createState.error}</AlertTitle>
+  </Alert>
+)}
+```
+
+## Progressive Enhancement
+
+Forms work without JavaScript:
+
+1. **Without JS**: Form submits traditionally, page reloads, Server Action runs
+2. **With JS**: Form submits via `useActionState`, no page reload, optimistic UI updates
+
+<Warning>
+  Always test forms with JavaScript disabled to ensure they work for all users.
+</Warning>
+
+## Form Dialog Integration
+
+Forms are typically shown inside Dialog components:
+
+```tsx
+<Dialog>
+  <DialogTrigger asChild>
+    <Button className="w-full">
+      <MailPlus />
+      <span>Add Message</span>
+    </Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogTitle className="text-lg font-semibold text-center">
+      Add Message
+    </DialogTitle>
+    <CreateMessageForm people={people} />
+  </DialogContent>
+</Dialog>
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validation First" icon="shield-check">
+    Always validate on the server with Zod before processing
+  </Card>
+  <Card title="Clear Feedback" icon="comment">
+    Show both toast notifications and inline alerts
+  </Card>
+  <Card title="Disable During Submit" icon="lock">
+    Disable submit button when `isPending` is true
+  </Card>
+  <Card title="Revalidate Data" icon="arrows-rotate">
+    Call `revalidatePath()` after successful mutations
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Actions" icon="server" href="/concepts/server-actions">
+    Deep dive into Server Actions implementation
+  </Card>
+  <Card title="API Integration" icon="plug" href="/configuration/backend-connection">
+    Learn about backend API communication
+  </Card>
+</CardGroup>
