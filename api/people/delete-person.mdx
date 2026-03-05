@@ -17,7 +17,7 @@ async function deletePerson(
 ## Parameters
 
 <ParamField path="prevState" type="PersonPrevState" required>
-  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  Previous state object returned from the last invocation. Used by React's `useActionState` hook.
   
   <Expandable title="PersonPrevState">
     <ResponseField name="success" type="boolean">
@@ -88,11 +88,11 @@ if (!id) {
 ## Usage Example
 
 ```typescript
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import deletePerson from "@/lib/actions/people/deletePerson";
 
 function DeletePersonButton({ personId }: { personId: string }) {
-  const [state, formAction] = useFormState(deletePerson, {});
+  const [state, formAction] = useActionState(deletePerson, {});
   
   return (
     <form action={formAction}>

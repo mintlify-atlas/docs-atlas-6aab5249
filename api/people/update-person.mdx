@@ -17,7 +17,7 @@ async function updatePerson(
 ## Parameters
 
 <ParamField path="prevState" type="PersonPrevState" required>
-  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  Previous state object returned from the last invocation. Used by React's `useActionState` hook.
   
   <Expandable title="PersonPrevState">
     <ResponseField name="success" type="boolean">
@@ -106,11 +106,11 @@ const personSchema = z.object({
 ## Usage Example
 
 ```typescript
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import updatePerson from "@/lib/actions/people/updatePerson";
 
 function EditPersonForm({ personId }: { personId: string }) {
-  const [state, formAction] = useFormState(updatePerson, {});
+  const [state, formAction] = useActionState(updatePerson, {});
   
   return (
     <form action={formAction}>

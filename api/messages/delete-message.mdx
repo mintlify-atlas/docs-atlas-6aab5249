@@ -17,7 +17,7 @@ async function deleteMessage(
 ## Parameters
 
 <ParamField path="prevState" type="MessagePrevState" required>
-  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  Previous state object returned from the last invocation. Used by React's `useActionState` hook.
   
   <Expandable title="MessagePrevState">
     <ResponseField name="success" type="boolean">
@@ -92,11 +92,11 @@ if (!id) {
 ## Usage Example
 
 ```typescript
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import deleteMessage from "@/lib/actions/message/deleteMessage";
 
 function DeleteMessageButton({ messageId }: { messageId: string }) {
-  const [state, formAction] = useFormState(deleteMessage, {});
+  const [state, formAction] = useActionState(deleteMessage, {});
   
   return (
     <form action={formAction}>

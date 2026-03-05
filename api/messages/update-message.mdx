@@ -17,7 +17,7 @@ async function updateMessage(
 ## Parameters
 
 <ParamField path="prevState" type="MessagePrevState" required>
-  Previous state object returned from the last invocation. Used by React's `useFormState` hook.
+  Previous state object returned from the last invocation. Used by React's `useActionState` hook.
   
   <Expandable title="MessagePrevState">
     <ResponseField name="success" type="boolean">
@@ -117,11 +117,11 @@ const messageSchema = z.object({
 ## Usage Example
 
 ```typescript
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import updateMessage from "@/lib/actions/message/updateMessage";
 
 function EditMessageForm({ messageId }: { messageId: string }) {
-  const [state, formAction] = useFormState(updateMessage, {});
+  const [state, formAction] = useActionState(updateMessage, {});
   
   return (
     <form action={formAction}>
